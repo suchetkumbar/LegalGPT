@@ -15,6 +15,7 @@ import { canEditContracts, getAuthContext } from "@/lib/auth/context";
 import { isUuid } from "@/lib/contracts/ids";
 import { getContract } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
+import { getWeights } from "@/lib/playbook/queries";
 
 export const metadata: Metadata = { title: "Contract" };
 
@@ -37,8 +38,14 @@ export default function ContractPage({ params }: PageProps<"/contracts/[id]">) {
 async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { org, user } = await getAuthContext();
-  const detail = isUuid(id) ? await withOrg(org.id, (tx) => getContract(tx, id)) : null;
-  if (!detail) notFound();
+  const loaded = isUuid(id)
+    ? await withOrg(org.id, async (tx) => ({
+        detail: await getContract(tx, id),
+        weights: await getWeights(tx),
+      }))
+    : null;
+  if (!loaded?.detail) notFound();
+  const { detail, weights } = loaded;
 
   const { contract, clauses, entities, findings, job } = detail;
 
@@ -75,7 +82,13 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
             </p>
           )}
           <KeyDetails contractType={contract.type} entities={entities} />
-          <RiskSummary findings={findings} />
+          {contract.summary && (
+            <section aria-label="Summary" className="rounded-lg border px-5 py-4">
+              <h2 className="text-sm font-medium">Summary</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed">{contract.summary}</p>
+            </section>
+          )}
+          <RiskSummary findings={findings} weights={weights} />
           <ContractViewer
             text={contract.text}
             clauses={clauses}

@@ -30,8 +30,15 @@ function bandOf(score: number): RiskBand {
 }
 
 /** The contract's risk score and where it comes from. */
-export function RiskSummary({ findings }: { findings: FindingSummary[] }) {
-  const result = computeRiskScore(findings);
+export function RiskSummary({
+  findings,
+  weights,
+}: {
+  findings: FindingSummary[];
+  /** Clause-type weights from the organisation's playbook. */
+  weights?: Partial<Record<string, number>>;
+}) {
+  const result = computeRiskScore(findings, weights);
   const open = findings.filter((finding) => finding.status === "open").length;
   const dismissed = findings.filter((finding) => finding.status === "dismissed").length;
 

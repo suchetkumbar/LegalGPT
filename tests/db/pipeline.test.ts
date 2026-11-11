@@ -310,10 +310,10 @@ describe("analyze pipeline", () => {
     expect(embedded[0]).toHaveLength(25);
     expect(embedded[0][13]).toMatch(/^Limitation of Liability\n/);
 
-    // classify (100 in, 10 out) + extract (100 in, 10 out) + embed (25 x 5 in).
+    // classify, extract and assess (100 in, 10 out each) + embed (25 x 5 in).
     expect(detail?.job).toMatchObject({
-      tokensIn: 325,
-      tokensOut: 20,
+      tokensIn: 425,
+      tokensOut: 30,
       status: "succeeded",
     });
   });
@@ -331,8 +331,8 @@ describe("analyze pipeline", () => {
     const detail = await runAsOrg(db, orgA, (tx) => getContract(tx, ids.contractId));
     expect(detail?.job).toMatchObject({
       status: "succeeded",
-      tokensIn: 200,
-      tokensOut: 20,
+      tokensIn: 300,
+      tokensOut: 30,
     });
   });
 

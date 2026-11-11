@@ -14,6 +14,20 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/dashboard" className="font-semibold tracking-tight">
               LegalGPT
             </Link>
+            <nav className="flex items-center gap-4 text-sm">
+              <Link
+                href="/dashboard"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Contracts
+              </Link>
+              <Link
+                href="/playbooks"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Playbook
+              </Link>
+            </nav>
             <Suspense fallback={<Skeleton className="h-7 w-40" />}>
               <OrganizationSwitcher
                 hidePersonal

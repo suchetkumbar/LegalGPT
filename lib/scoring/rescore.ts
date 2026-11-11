@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import * as schema from "@/lib/db/schema";
 import type { OrgTx } from "@/lib/db/tenant";
+import { getWeights } from "@/lib/playbook/queries";
 
 import { computeRiskScore, type RiskScore } from "./score";
 
@@ -24,7 +25,7 @@ export async function rescoreContract(tx: OrgTx, contractId: string): Promise<Ri
     .from(findings)
     .where(eq(findings.contractId, contractId));
 
-  const result = computeRiskScore(rows);
+  const result = computeRiskScore(rows, await getWeights(tx));
   await tx
     .update(contracts)
     .set({ riskScore: result.score, updatedAt: new Date() })

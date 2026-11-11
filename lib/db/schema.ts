@@ -11,6 +11,7 @@ import {
   pgPolicy,
   pgRole,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -152,6 +153,8 @@ export const contracts = pgTable(
     }),
     version: integer("version").notNull().default(1),
     riskScore: integer("risk_score"),
+    // Executive summary written by the model pass.
+    summary: text("summary"),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -231,6 +234,58 @@ export const entities = pgTable(
   (t) => [
     index("entities_contract_idx").on(t.contractId),
     pgPolicy("entities_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export const playbooks = pgTable(
+  "playbooks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // Bumped on every edit, so a report can say which version it was checked against.
+    version: integer("version").notNull().default(1),
+    isDefault: boolean("is_default").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("playbooks_org_idx").on(t.orgId),
+    pgPolicy("playbooks_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export const playbookPositions = pgTable(
+  "playbook_positions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    playbookId: uuid("playbook_id")
+      .notNull()
+      .references(() => playbooks.id, { onDelete: "cascade" }),
+    clauseType: text("clause_type").notNull(),
+    standardText: text("standard_text").notNull(),
+    fallbackText: text("fallback_text"),
+    walkaway: text("walkaway"),
+    riskWeight: real("risk_weight").notNull().default(1),
+  },
+  (t) => [
+    uniqueIndex("playbook_positions_type_idx").on(t.playbookId, t.clauseType),
+    pgPolicy("playbook_positions_tenant_isolation", {
       for: "all",
       to: appUser,
       using: sql`${t.orgId} = ${currentOrgId}`,
@@ -334,6 +389,8 @@ export type Contract = typeof contracts.$inferSelect;
 export type ContractStatus = (typeof contractStatus.enumValues)[number];
 export type Clause = typeof clauses.$inferSelect;
 export type Entity = typeof entities.$inferSelect;
+export type Playbook = typeof playbooks.$inferSelect;
+export type PlaybookPositionRow = typeof playbookPositions.$inferSelect;
 export type Finding = typeof findings.$inferSelect;
 export type FindingStatus = (typeof findingStatus.enumValues)[number];
 export type Job = typeof jobs.$inferSelect;

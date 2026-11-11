@@ -16,6 +16,10 @@ export type StructuredRequest<T> = {
   schema: ZodType<T>;
   system: string;
   prompt: string;
+  /** How much the model should deliberate. Defaults to "low". */
+  thinking?: "low" | "medium" | "high";
+  /** Time allowed for one attempt, in milliseconds. Defaults to two minutes. */
+  timeoutMs?: number;
 };
 
 export type StructuredResult<T> = {

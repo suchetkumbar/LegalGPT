@@ -223,12 +223,43 @@ of all 20 playbook clause types, so findings alone rarely push a contract past
 because of the critical-finding floor. Worth revisiting once there is a labelled
 set to tune against (2c).
 
-### 2b — Playbook and model pass (next)
+### 2b — Playbook and model pass (built)
 
-Playbook tables, default playbook for 20 clause types, playbook editor; Gemini
-deviation analysis and risk judgment on the reasoning tier, with the quote check;
-executive summary. Uses the Gemini key, so each live test needs the owner's
-go-ahead.
+| Plan item                                                    | Status                                                         |
+| ------------------------------------------------------------ | -------------------------------------------------------------- |
+| Default playbook with standard positions for 20 clause types | Done; created per organisation on first use                    |
+| Playbook editor UI                                           | Built at `/playbooks` (admin only); not yet tried in a browser |
+| Deviation analysis against the playbook                      | Built, reasoning tier                                          |
+| Risk judgment: severity and likelihood for each rule hit     | Built, same call                                               |
+| Server-side quote check                                      | Done: a deviation whose quote is not in its clause is dropped  |
+| Executive summary                                            | Built, same call                                               |
+
+Deviations:
+
+- **One model call, not three.** Deviation analysis, risk judgment and the
+  summary share a single reasoning-tier request per contract, to stay inside a
+  free quota (owner's instruction, 2026-11-11: keep calls minimal). The plan put
+  the summary on the standard tier as its own call. A contract now costs four
+  model calls in all: classify, extract, embed, assess.
+- **Clauses are not batched by type.** The whole contract goes in one request,
+  so the model sees interacting clauses together. Very long contracts are cut
+  at 120,000 characters of clause text.
+- **A rule finding is never deleted by the model.** If the model judges that it
+  does not apply, the finding drops to severity 1 with the reason attached.
+- **The score now uses the playbook's weights**, so editing a weight changes
+  scores from the next analysis or review action.
+- **No "which party are we" setting yet.** The review takes the organisation's
+  side only when one party is recognisably the organisation; otherwise it judges
+  one-sided terms neutrally. The setting moves to 2c.
+- **Reasoning tier is `gemini-3.8-flash`**, the strongest free model, with
+  low thinking and a four-minute limit per attempt.
+
+Not yet verified against real Gemini: the one live call made for this sub-phase
+(2026-11-11, medium thinking, two-minute limit) timed out without an answer. The
+settings above were changed in response and have not been tried. If the call
+keeps timing out, the options are a smaller request (fewer clauses per call) or
+moving this step to `gemini-3.6-flash`. A failed judgment call leaves the
+contract with its rule findings and score, and "Run analysis again" retries it.
 
 ### 2c — Evaluation and polish
 

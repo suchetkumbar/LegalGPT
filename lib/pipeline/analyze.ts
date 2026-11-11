@@ -5,6 +5,7 @@ import type { OrgTx } from "@/lib/db/tenant";
 
 import type { PipelineAi, TokenUsage } from "./ai";
 import type { ClauseType } from "./clause-types";
+import { assessContract } from "./assess";
 import { classifySegments } from "./classify";
 import { extractEntities, pickCounterparty } from "./extract";
 import { detectFileKind } from "./file-type";
@@ -12,12 +13,13 @@ import type { OcrFunction } from "./ocr";
 import { DocumentError, parseDocument } from "./parse";
 import { segmentContract, type Segment } from "./segment";
 import { runRules } from "@/lib/rules";
+import { ensurePlaybook } from "@/lib/playbook/queries";
 import { rescoreContract } from "@/lib/scoring/rescore";
 
 const { contracts, clauses, entities, findings, jobs, orgs } = schema;
 
 /**
- * The `analyze` job: parse → segment → classify → extract → embed → review.
+ * The `analyze` job: parse → segment → classify → extract → embed → review → assess.
  *
  * Each stage reads what it needs from the database and writes its own output,
  * so stages can be retried one at a time and nothing confidential has to be
@@ -31,11 +33,17 @@ export const ANALYZE_STAGES = [
   "extract",
   "embed",
   "review",
+  "assess",
 ] as const;
 export type AnalyzeStage = (typeof ANALYZE_STAGES)[number];
 
 /** Stages that need a model. If one fails, the rule-based clauses are still usable. */
-const MODEL_STAGES: ReadonlySet<string> = new Set(["classify", "extract", "embed"]);
+const MODEL_STAGES: ReadonlySet<string> = new Set([
+  "classify",
+  "extract",
+  "embed",
+  "assess",
+]);
 
 export type AnalysisDeps = {
   /** Runs a callback in a transaction limited to the contract's org. */
@@ -319,6 +327,115 @@ const STAGES: Record<
         );
       }
 
+      await rescoreContract(tx, contractId);
+    });
+  },
+
+  /**
+   * The judgment pass: one reasoning-tier call that re-scores the rule
+   * findings in context, reports material deviations from the playbook, and
+   * writes the summary.
+   */
+  async assess({ scope, ai }, { contractId, jobId }) {
+    const loaded = await scope(async (tx) => {
+      const { contract } = await loadText(tx, contractId);
+      const [org] = await tx.select().from(orgs).where(eq(orgs.id, contract.orgId));
+      return {
+        contract,
+        orgName: org?.name ?? "",
+        rows: await loadClauses(tx, contractId),
+        positions: (await ensurePlaybook(tx, contract.orgId)).positions,
+        rules: await tx
+          .select()
+          .from(findings)
+          .where(and(eq(findings.contractId, contractId), eq(findings.source, "rule")))
+          .orderBy(asc(findings.createdAt), asc(findings.id)),
+      };
+    });
+    const { contract, rows, rules } = loaded;
+    if (rows.length === 0) return;
+
+    const result = await assessContract(ai, {
+      clauses: rows,
+      positions: loaded.positions,
+      ruleFindings: rules.map((finding, index) => ({
+        index,
+        title: finding.title,
+        severity: finding.severity,
+        likelihood: finding.likelihood,
+        quotedText: finding.quotedText,
+      })),
+      // Only known when one party is recognisably the organisation itself.
+      perspective: contract.counterparty ? loaded.orgName : null,
+    });
+
+    await scope(async (tx) => {
+      for (const judgment of result.judgments) {
+        const finding = rules[judgment.index];
+        await tx
+          .update(findings)
+          .set({
+            severity: judgment.severity,
+            likelihood: judgment.likelihood,
+            reasoning: judgment.note
+              ? `${finding.reasoning} In this contract: ${judgment.note}`
+              : finding.reasoning,
+            model: result.modelId,
+            usedFallback: result.usedFallback,
+            updatedAt: new Date(),
+          })
+          .where(eq(findings.id, finding.id));
+      }
+
+      // Replace earlier model findings, keeping a reviewer's decision on the
+      // same deviation (same clause type, same quoted words).
+      const previous = await tx
+        .select()
+        .from(findings)
+        .where(and(eq(findings.contractId, contractId), eq(findings.source, "model")));
+      const key = (type: string | null, quote: string | null) => `${type}|${quote ?? ""}`;
+      const decided = new Map(
+        previous
+          .filter((finding) => finding.status !== "open")
+          .map((finding) => [key(finding.clauseType, finding.quotedText), finding]),
+      );
+      await tx
+        .delete(findings)
+        .where(and(eq(findings.contractId, contractId), eq(findings.source, "model")));
+      if (result.deviations.length > 0) {
+        await tx.insert(findings).values(
+          result.deviations.map((deviation) => {
+            const earlier = decided.get(key(deviation.clauseType, deviation.quotedText));
+            return {
+              orgId: contract.orgId,
+              contractId,
+              clauseId:
+                rows.find((row) => row.ordinal === deviation.clauseOrdinal)?.id ?? null,
+              kind: "deviation" as const,
+              source: "model" as const,
+              title: deviation.title,
+              category: deviation.category,
+              clauseType: deviation.clauseType,
+              severity: deviation.severity,
+              likelihood: deviation.likelihood,
+              quotedText: deviation.quotedText,
+              reasoning: deviation.reasoning,
+              suggestedFix: deviation.suggestedFix,
+              model: result.modelId,
+              usedFallback: result.usedFallback,
+              status: earlier?.status ?? ("open" as const),
+              reviewedBy: earlier?.reviewedBy ?? null,
+              reviewedAt: earlier?.reviewedAt ?? null,
+            };
+          }),
+        );
+      }
+
+      await tx
+        .update(contracts)
+        .set({ summary: result.summary || null, updatedAt: new Date() })
+        .where(eq(contracts.id, contractId));
+      await addUsage(tx, jobId, result.usage);
       await rescoreContract(tx, contractId);
     });
   },

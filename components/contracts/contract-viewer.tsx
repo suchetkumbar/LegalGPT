@@ -298,6 +298,13 @@ export function ContractViewer({
                     </div>
 
                     <h3 className="mt-1.5 font-medium">{finding.title}</h3>
+                    {(finding.kind === "deviation" || finding.usedFallback) && (
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {finding.kind === "deviation" && "Deviation from your playbook"}
+                        {finding.kind === "deviation" && finding.usedFallback && " · "}
+                        {finding.usedFallback && "Judged by a fallback model"}
+                      </p>
+                    )}
 
                     {finding.quotedText ? (
                       <blockquote className="text-muted-foreground mt-1.5 border-l-2 pl-3 text-xs italic">

@@ -23,6 +23,8 @@ const EXPECTED_TABLES = [
   "findings",
   "jobs",
   "orgs",
+  "playbook_positions",
+  "playbooks",
   "users",
 ];
 

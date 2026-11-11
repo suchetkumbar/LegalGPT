@@ -1,5 +1,6 @@
 import type { PipelineAi, StructuredRequest } from "@/lib/pipeline/ai";
 import type { Correction } from "@/lib/pipeline/classify";
+import type { Assessment } from "@/lib/pipeline/assess";
 import type { Extraction } from "@/lib/pipeline/extract";
 
 export const EMPTY_EXTRACTION: Extraction = {
@@ -16,10 +17,12 @@ type Options = {
   /** Decides the answer for one segment. Defaults to type "other", no changes. */
   classify?: (index: number, text: string) => Partial<Correction>;
   extraction?: Extraction;
+  /** The judgment pass's answer. Defaults to no changes and no deviations. */
+  assessment?: Assessment;
   /** Makes the named call throw, to simulate an exhausted quota. */
   /** What the embedding call reports as its token count. Gemini reports none (NaN). */
   embedTokens?: number;
-  failOn?: "pipeline.classify" | "pipeline.extract" | "embed";
+  failOn?: "pipeline.classify" | "pipeline.extract" | "pipeline.assess" | "embed";
 };
 
 /** A stand-in for Gemini: answers from the prompt it is given, with no network. */
@@ -50,6 +53,8 @@ export function fakeAi(options: Options = {}) {
           };
         });
         object = { segments };
+      } else if (request.functionId === "pipeline.assess") {
+        object = options.assessment ?? { summary: "", ruleFindings: [], deviations: [] };
       } else {
         object = options.extraction ?? EMPTY_EXTRACTION;
       }

@@ -41,9 +41,11 @@ export const pipelineAi: PipelineAi = {
         output: Output.object({ schema: request.schema }),
         // Extraction and labelling need little deliberation; keeping thinking
         // low makes these calls several times faster.
-        providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } },
+        providerOptions: {
+          google: { thinkingConfig: { thinkingLevel: request.thinking ?? "low" } },
+        },
         maxRetries: maxRetries(),
-        timeout: 120_000,
+        timeout: request.timeoutMs ?? 120_000,
         telemetry: privateTelemetry(request.functionId),
       }),
     );

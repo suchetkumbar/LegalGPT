@@ -81,6 +81,12 @@ Everything else in `.env.example` is optional in development.
   carries its own examples, which the tests run. Findings are stored per contract
   and scored by `lib/scoring/score.ts` using the formula in the plan. A reviewer
   can accept or dismiss each one; a dismissed finding leaves the score.
+- **Playbook and judgment.** Each organisation has a playbook
+  (`lib/playbook`): a standard position, fallback, walk-away point and risk
+  weight for 20 clause types, editable at `/playbooks` by an admin. After the
+  rules run, one reasoning-tier call (`lib/pipeline/assess.ts`) re-scores the rule
+  findings in context, reports material deviations from the playbook and writes
+  the summary. A deviation is stored only if its quote is found in the clause.
 - **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
   inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
   English only, up to 40 pages. The contract is flagged as read by OCR.

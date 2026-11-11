@@ -50,6 +50,13 @@
       "when": 1794382063145,
       "tag": "0006_findings",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794382712917,
+      "tag": "0007_playbooks_and_summary",
+      "breakpoints": true
     }
   ]
 }

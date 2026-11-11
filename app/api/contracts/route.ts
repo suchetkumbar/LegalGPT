@@ -7,7 +7,7 @@ import { startAnalysis } from "@/lib/pipeline/enqueue";
 import { MAX_UPLOAD_BYTES, MIME_TYPES, detectFileKind } from "@/lib/pipeline/file-type";
 import { getStorage } from "@/lib/storage";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function fail(status: number, error: string) {
   return Response.json({ error }, { status });

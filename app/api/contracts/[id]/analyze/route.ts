@@ -4,7 +4,7 @@ import { createAnalysisJob } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
 import { startAnalysis } from "@/lib/pipeline/enqueue";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /** Run the analysis again, for example after the model quota has reset. */
 export async function POST(
