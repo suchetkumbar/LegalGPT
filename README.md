@@ -44,6 +44,7 @@ Everything else in `.env.example` is optional in development.
 | `npm run db:migrate`                   | Apply migrations to `DATABASE_URL`                                            |
 | `npm run format`                       | Format with Prettier                                                          |
 | `npm run eval:segmentation`            | Score clause segmentation on the 30 generated contracts (rules only, offline) |
+| `npm run eval:risk`                    | Score the rule engine on 30 generated contracts with planted risks (offline)  |
 | `npm run eval:segmentation -- --model` | The same with the Gemini pass: one call per contract, cached                  |
 
 ## How the pieces fit

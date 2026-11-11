@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { AnalysisProgress } from "@/components/contracts/analysis-progress";
 import { ContractViewer } from "@/components/contracts/contract-viewer";
 import { KeyDetails } from "@/components/contracts/key-details";
+import { OurPartySelect } from "@/components/contracts/our-party-select";
 import { RetryAnalysis } from "@/components/contracts/retry-analysis";
 import { RiskSummary } from "@/components/contracts/risk-summary";
 import { StatusBadge } from "@/components/contracts/status-badge";
@@ -59,6 +60,9 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
         <p className="text-muted-foreground mt-1 text-sm">
           {contract.fileName}
           {contract.pageCount ? ` · ${contract.pageCount} pages` : ""}
+          {job && job.tokensIn + job.tokensOut > 0
+            ? ` · last analysis used ${(job.tokensIn + job.tokensOut).toLocaleString("en-IN")} tokens`
+            : ""}
         </p>
       </div>
 
@@ -82,6 +86,12 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
             </p>
           )}
           <KeyDetails contractType={contract.type} entities={entities} />
+          <OurPartySelect
+            contractId={contract.id}
+            parties={entities.filter((e) => e.kind === "party").map((e) => e.value)}
+            current={contract.ourParty}
+            canEdit={canEditContracts(user)}
+          />
           {contract.summary && (
             <section aria-label="Summary" className="rounded-lg border px-5 py-4">
               <h2 className="text-sm font-medium">Summary</h2>

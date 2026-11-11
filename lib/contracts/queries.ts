@@ -288,3 +288,56 @@ export async function setFindingStatus(
   const { score } = await rescoreContract(tx, finding.contractId);
   return { finding, riskScore: score };
 }
+
+/**
+ * Records which party the organisation is. The name must be one of the
+ * parties extracted from this contract (or null to clear it).
+ */
+export async function setOurParty(
+  tx: OrgTx,
+  input: { contractId: string; ourParty: string | null; actorId: string },
+): Promise<Contract | "not-found" | "not-a-party"> {
+  const [contract] = await tx
+    .select()
+    .from(contracts)
+    .where(eq(contracts.id, input.contractId));
+  if (!contract) return "not-found";
+
+  if (input.ourParty !== null) {
+    const parties = await tx
+      .select({ value: entities.value, kind: entities.kind })
+      .from(entities)
+      .where(eq(entities.contractId, input.contractId));
+    const isParty = parties.some((p) => p.kind === "party" && p.value === input.ourParty);
+    if (!isParty) return "not-a-party";
+  }
+
+  const others = input.ourParty
+    ? (
+        await tx
+          .select({ value: entities.value, kind: entities.kind })
+          .from(entities)
+          .where(eq(entities.contractId, input.contractId))
+      )
+        .filter((p) => p.kind === "party" && p.value !== input.ourParty)
+        .map((p) => p.value)
+    : [];
+
+  const [updated] = await tx
+    .update(contracts)
+    .set({
+      ourParty: input.ourParty,
+      counterparty: others.length ? others.join(", ") : contract.counterparty,
+      updatedAt: new Date(),
+    })
+    .where(eq(contracts.id, input.contractId))
+    .returning();
+  await tx.insert(auditLog).values({
+    orgId: contract.orgId,
+    actorId: input.actorId,
+    action: "contract.our_party_set",
+    target: `contract:${contract.id}`,
+    diff: { ourParty: [contract.ourParty, input.ourParty] },
+  });
+  return updated;
+}

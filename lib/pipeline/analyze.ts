@@ -365,8 +365,9 @@ const STAGES: Record<
         likelihood: finding.likelihood,
         quotedText: finding.quotedText,
       })),
-      // Only known when one party is recognisably the organisation itself.
-      perspective: contract.counterparty ? loaded.orgName : null,
+      // A reviewer's choice wins. Failing that, the side is only known when
+      // one party is recognisably the organisation itself.
+      perspective: contract.ourParty ?? (contract.counterparty ? loaded.orgName : null),
     });
 
     await scope(async (tx) => {

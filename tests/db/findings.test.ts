@@ -14,6 +14,7 @@ import {
   getContract,
   listContracts,
   setFindingStatus,
+  setOurParty,
 } from "@/lib/contracts/queries";
 import * as schema from "@/lib/db/schema";
 import { runAsOrg, type OrgTx } from "@/lib/db/tenant";
@@ -238,6 +239,40 @@ describe("reviewing findings", () => {
       "dismissed",
     );
     expect(after!.findings.filter((f) => f.status === "dismissed")).toHaveLength(1);
+  });
+
+  it("records which party the organisation is, and only accepts a real party", async () => {
+    const parties = [
+      "Narmada Retail Private Limited",
+      "Tungabhadra Software Solutions Private Limited",
+    ];
+    const { contractId } = await analyse(
+      orgA,
+      userA,
+      "services-agreement",
+      fakeAi({
+        extraction: {
+          ...EMPTY_EXTRACTION,
+          contractType: "master_services_agreement",
+          parties: parties.map((name) => ({
+            name,
+            role: null,
+            quote: `${name}, a company incorporated`,
+          })),
+        },
+      }).ai,
+    );
+    const set = (ourParty: string | null, orgId = orgA) =>
+      runAsOrg(db, orgId, (tx) =>
+        setOurParty(tx, { contractId, ourParty, actorId: userA }),
+      );
+
+    expect(await set("Somebody Else Limited")).toBe("not-a-party");
+    expect(await set(parties[0], orgB)).toBe("not-found");
+
+    const updated = await set(parties[0]);
+    expect(updated).toMatchObject({ ourParty: parties[0], counterparty: parties[1] });
+    expect(await set(null)).toMatchObject({ ourParty: null });
   });
 
   it("cannot see or change another org's findings", async () => {

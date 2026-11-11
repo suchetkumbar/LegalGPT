@@ -261,7 +261,45 @@ keeps timing out, the options are a smaller request (fewer clauses per call) or
 moving this step to `gemini-3.6-flash`. A failed judgment call leaves the
 contract with its rule findings and score, and "Run analysis again" retries it.
 
-### 2c — Evaluation and polish
+### 2c — Evaluation and polish (built)
 
-Risk evaluation set (recall and precision on high-severity findings), radar
-chart, cost per contract.
+No model calls in this sub-phase.
+
+| Plan item                         | Status                                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Category breakdown radar chart    | Done (SVG, beside the category list on wide screens)                                                                           |
+| "Which party are we" setting      | Done: `contracts.our_party`, chosen from the extracted parties; used by the judgment pass on the next analysis                 |
+| Analysis cost per contract logged | Token counts are stored per job and shown on the contract page. Cost in rupees is zero on the free tier, so `cost_usd` stays 0 |
+| Risk evaluation set               | Done as a generated set: `npm run eval:risk`                                                                                   |
+
+### Phase 2 exit criteria
+
+| Criterion                                                                                       | Result                                                                                                                                                                                                        | Status                                                                                         |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| High-severity recall at least 85%, precision at least 75%, on 30 contracts labelled by a lawyer | Rules only, on 30 generated contracts with 68 planted risks: recall 100%, precision 100%                                                                                                                      | Passes on the generated set. Not measured on lawyer-labelled contracts, which do not exist yet |
+| Zero findings without a valid quote                                                             | Rule findings quote their clause by construction (tested on every detector). Model deviations are dropped unless the quote is found in the clause (tested). "Missing clause" findings have no quote by nature | Met, with the stated exception                                                                 |
+| Median analysis cost per contract is logged                                                     | Tokens per job are stored and shown; no median report yet                                                                                                                                                     | Partly met                                                                                     |
+
+How to read the risk numbers:
+
+- The first run scored **74.7% recall** and 100% precision. Three planted risks
+  were loose paraphrases the detectors did not recognise ("be more than" for a
+  cap, "bring this Agreement to an end", "gives up any right to approach a
+  court"). I widened those three patterns, which are sensible generalisations, and
+  recall rose to 100%. A score reached by fixing the misses it revealed says the
+  rules now cover this set, not that they will cover the next one.
+- One planted risk, a one-sided right to terminate at will, was removed from the
+  gold labels in contracts that already let either party leave on notice, where
+  it is not a real risk.
+- The contracts, the planted risks and the rules have the same author. Real
+  contracts labelled by a lawyer remain the meaningful test.
+- The judgment pass (deviations, re-scoring) is not evaluated at all: its one
+  live call timed out, and it has not yet been seen to work against real Gemini.
+
+### Open items carried forward (Phase 2)
+
+- Confirm the judgment step works against real Gemini (see 2b).
+- Risk evaluation on real, lawyer-labelled Indian contracts.
+- The plan's score formula rarely exceeds "medium" without a critical finding;
+  revisit once there are real scores to look at.
+- A median cost report across contracts.

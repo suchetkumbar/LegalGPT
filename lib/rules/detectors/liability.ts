@@ -57,7 +57,7 @@ export const liabilityRules: Rule[] = [
     likelihood: 3,
     types: ["limitation_of_liability"],
     pattern:
-      /\b(?:shall not exceed|limited to|capped at|not exceed)\b[^.;]{0,140}\b(?:fees|charges|amounts?)\b[^.;]{0,80}/i,
+      /\b(?:shall not exceed|limited to|capped at|not exceed|(?:be|is) (?:no )?more than)\b[^.;]{0,140}\b(?:fees|charges|amounts?)\b[^.;]{0,80}/i,
     check: (_match, sentence) => {
       const period = durations(sentence)[0];
       if (!period || period.days > 183) return false;

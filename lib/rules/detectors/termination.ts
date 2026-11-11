@@ -24,7 +24,7 @@ export const terminationRules: Rule[] = [
     severity: 4,
     likelihood: 3,
     pattern: new RegExp(
-      `${PARTY}\\s+may\\s+terminate\\b[^.;]{0,180}\\b(?:for (?:its )?convenience|without cause|without assigning any reason|at any time|at its (?:sole )?discretion|for any reason)`,
+      `${PARTY}\\s+may\\s+(?:terminate|(?:end|cancel) (?:this|the) (?:Agreement|contract)|bring (?:this|the) (?:Agreement|contract) to an end)\\b[^.;]{0,180}\\b(?:for (?:its )?convenience|without cause|without assigning any reason|without giving (?:any )?reasons?|at any time|whenever it wishes|at its (?:sole )?discretion|for any reason)`,
     ),
     unless: MUTUAL,
     check: (match, _sentence, _clause, context) => {

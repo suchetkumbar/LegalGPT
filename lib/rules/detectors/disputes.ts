@@ -92,7 +92,7 @@ export const disputeRules: Rule[] = [
     severity: 4,
     likelihood: 2,
     pattern:
-      /\bwaives?\b[^.;]{0,100}\b(?:right to (?:sue|approach|seek|bring|file)|injuncti|legal proceedings|any claim)\b/i,
+      /\b(?:waives?|gives? up|relinquish(?:es)?|surrenders?)\b[^.;]{0,100}\b(?:right to (?:sue|approach|seek|bring|file)|injuncti|legal proceedings|any claim)\b/i,
     explanation:
       "A party gives up its right to take legal action. Section 28 of the Indian Contract Act, 1872 makes an agreement that absolutely restrains a party from enforcing its rights by legal proceedings void.",
     suggestion:

@@ -1,0 +1,13 @@
+{
+  "gates": {
+    "recall": 0.85,
+    "precision": 0.75
+  },
+  "contracts": 30,
+  "planted": 68,
+  "plantedFound": 68,
+  "recall": 1,
+  "highFindings": 86,
+  "highCorrect": 86,
+  "precision": 1
+}

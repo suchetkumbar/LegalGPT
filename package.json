@@ -16,7 +16,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "check": "npm run lint && npm run typecheck && npm run test && npm run format:check",
-    "eval:segmentation": "tsx --conditions=react-server evals/run-segmentation.ts"
+    "eval:segmentation": "tsx --conditions=react-server evals/run-segmentation.ts",
+    "eval:risk": "tsx evals/run-risk.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.117",

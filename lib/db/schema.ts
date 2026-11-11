@@ -135,6 +135,9 @@ export const contracts = pgTable(
     // Contract type (NDA, MSA, ...) and counterparty are filled in by extraction.
     type: text("type"),
     counterparty: text("counterparty"),
+    // Which party the organisation is, chosen by a reviewer. Sets whose side
+    // the judgment pass takes.
+    ourParty: text("our_party"),
     status: contractStatus("status").notNull().default("uploaded"),
     // Storage key of the original file, not a public URL.
     blobUrl: text("blob_url").notNull(),

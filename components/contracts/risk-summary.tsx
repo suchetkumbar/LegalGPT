@@ -45,7 +45,7 @@ export function RiskSummary({
   return (
     <section
       aria-label="Risk score"
-      className="grid gap-6 rounded-lg border px-5 py-4 md:grid-cols-[14rem_1fr]"
+      className="grid gap-6 rounded-lg border px-5 py-4 md:grid-cols-[14rem_1fr] lg:grid-cols-[14rem_14rem_1fr]"
     >
       <div>
         <h2 className="text-sm font-medium">Risk score</h2>
@@ -65,7 +65,9 @@ export function RiskSummary({
         </p>
       </div>
 
-      <dl className="grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
+      <RiskRadar values={result.byCategory} />
+
+      <dl className="grid content-center gap-y-2.5">
         {RISK_CATEGORIES.map((category) => {
           const value = result.byCategory[category];
           return (
@@ -104,5 +106,86 @@ export function RiskScoreBadge({ score }: { score: number | null }) {
       </span>
       <span className="font-medium tabular-nums">{score}</span>
     </span>
+  );
+}
+
+const RADAR_LABELS: Record<string, string> = {
+  liability: "Liability",
+  ip: "IP",
+  termination: "Termination",
+  payment: "Payment",
+  data: "Data",
+  renewal: "Renewal",
+  restrictions: "Restrictions",
+  disputes: "Disputes",
+};
+
+/**
+ * The category breakdown as a radar chart. Decorative: the same numbers are
+ * in the list beside it, which is what assistive technology reads.
+ */
+function RiskRadar({ values }: { values: Record<string, number> }) {
+  const size = 220;
+  const centre = size / 2;
+  const radius = 70;
+  const point = (index: number, value: number) => {
+    const angle = (Math.PI * 2 * index) / RISK_CATEGORIES.length - Math.PI / 2;
+    const r = (radius * value) / 100;
+    return [centre + r * Math.cos(angle), centre + r * Math.sin(angle)] as const;
+  };
+  const ring = (value: number) =>
+    RISK_CATEGORIES.map((_, index) => point(index, value).join(",")).join(" ");
+  const shape = RISK_CATEGORIES.map((category, index) =>
+    point(index, values[category] ?? 0).join(","),
+  ).join(" ");
+
+  return (
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      className="mx-auto hidden h-52 w-52 lg:block"
+      aria-hidden
+      focusable="false"
+    >
+      {[25, 50, 75, 100].map((value) => (
+        <polygon
+          key={value}
+          points={ring(value)}
+          fill="none"
+          className="stroke-border"
+          strokeWidth={1}
+        />
+      ))}
+      {RISK_CATEGORIES.map((category, index) => {
+        const [x, y] = point(index, 100);
+        const [lx, ly] = point(index, 128);
+        return (
+          <g key={category}>
+            <line
+              x1={centre}
+              y1={centre}
+              x2={x}
+              y2={y}
+              className="stroke-border"
+              strokeWidth={1}
+            />
+            <text
+              x={lx}
+              y={ly}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="fill-muted-foreground text-[9px]"
+            >
+              {RADAR_LABELS[category]}
+            </text>
+          </g>
+        );
+      })}
+      <polygon
+        points={shape}
+        className="fill-orange-500/25 stroke-orange-600"
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
