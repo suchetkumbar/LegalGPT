@@ -476,3 +476,51 @@ Deviations:
 | A two-person review flow works end to end                       | Upload → assign → approve by the reviewer → sign by an admin, with audit entries (tested) | Met in tests; not tried in a browser |
 | A 100-contract bulk scan finishes overnight with no failed jobs | Archive handling and throttling built; not run                                            | Not verified                         |
 | Budget limits block calls once a budget runs out                | Tested: no model call is made and the rule-based review still runs                        | Met in tests                         |
+
+## Phase 7 — Hardening, evals and launch (built)
+
+No model calls.
+
+| Plan item                                                                                      | Status                                                                                                                                                       |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Eval harness in CI, failing on a regression of more than 3 points                              | Done for the offline evaluations (`npm run eval:gate`, in CI and `npm run check`). No model-judge step                                                       |
+| Security pass: row-level security tests, prompt-injection tests, rate limits, file-type checks | Done: every table checked for RLS; 25 poisoned contracts at six call sites; Postgres rate limits on uploads, AI actions, bulk and comments; security headers |
+| Performance: cache the analysis per file hash                                                  | Done: re-uploading an analysed file opens the earlier analysis                                                                                               |
+| Privacy: retention, delete-my-data, DPA page, data-use note                                    | Done: retention 30/90/365 days with a daily purge, delete one or all contracts, `/privacy`, `/dpa`                                                           |
+| Landing page, docs, demo org with sample contracts, disclaimer                                 | Done: `/docs`, "Load three sample contracts" (rules only)                                                                                                    |
+| Load test with 50 concurrent analyses; on-call alerts                                          | Script written (`loadtest/analyze.js`); not run. Alerts: configure in Sentry                                                                                 |
+
+Deviations:
+
+- **The privacy notice says Gemini's free tier may use content to improve
+  Google's products**, rather than the plan's note about Anthropic. Anthropic is
+  not used.
+- **No model-judge step in the eval gate.** It would spend quota on every change.
+- **Rate limits are in Postgres**, per user, in fixed windows. If the limiter's own
+  query fails, the request is allowed.
+- **One daily cron** (`/api/cron/daily`) runs both retention and reminders, to
+  stay inside the free plan's cron allowance. `/api/cron/reminders` still works.
+- **No content security policy yet.** Clerk, Sentry and Vercel Analytics load
+  scripts from their own domains; a policy must be tested on a deployment first.
+- **The privacy notice and DPA are drafts.** They describe what the software
+  does; the operator's details and a lawyer's review are needed before launch.
+- **A demo organisation is not pre-created**, because organisations come from
+  Clerk. Any empty organisation can load the three samples.
+
+### Phase 7 exit criteria
+
+| Criterion                                  | Result                                                        | Status                     |
+| ------------------------------------------ | ------------------------------------------------------------- | -------------------------- |
+| All eval gates green                       | Offline gates pass; model-dependent evaluations not run       | Partly met                 |
+| No critical security issues                | Self-review and tests only; no independent penetration test   | Not verified independently |
+| p95 time to first finding under 20 seconds | Not measured                                                  | Not measured               |
+| Live on a custom domain                    | A custom domain costs money; the `vercel.app` address is free | Owner's decision           |
+
+## Overall status
+
+All seven phases are built. Before real customer contracts go through it:
+
+1. Move Gemini to a paid tier (the free tier may use content to improve Google's products).
+2. Have a lawyer review the rule packs, default playbook, templates, privacy notice and DPA.
+3. Deploy, and check what only a deployment can show: OCR on Vercel, the daily cron, Inngest, the security headers with Clerk.
+4. Measure what is still unmeasured: the model-assisted evaluations, timing, and the load test.

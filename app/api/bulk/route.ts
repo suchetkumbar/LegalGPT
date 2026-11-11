@@ -9,6 +9,7 @@ import { notifyBulkScanIfDone } from "@/lib/bulk/notify";
 import { BulkError, readArchive } from "@/lib/bulk/scan";
 import { createContract } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
+import { limitRequest } from "@/lib/security/guard";
 import * as schema from "@/lib/db/schema";
 import { runAnalysis } from "@/lib/pipeline/analyze";
 import { analysisDeps } from "@/lib/pipeline/deps";
@@ -34,6 +35,9 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
+
+  const limited = await limitRequest("bulk", user.id);
+  if (limited) return limited;
 
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");

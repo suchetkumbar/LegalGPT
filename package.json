@@ -15,9 +15,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run format:check",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run eval:gate && npm run format:check",
     "eval:segmentation": "tsx --conditions=react-server evals/run-segmentation.ts",
-    "eval:risk": "tsx evals/run-risk.ts"
+    "eval:risk": "tsx evals/run-risk.ts",
+    "eval:gate": "tsx evals/gate.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.117",

@@ -1,0 +1,7 @@
+{
+  "segmentation.f1": 0.966,
+  "segmentation.clean.f1": 1,
+  "segmentation.noisy.f1": 0.895,
+  "risk.recall": 1,
+  "risk.precision": 1
+}

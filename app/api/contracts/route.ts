@@ -7,6 +7,8 @@ import { createContract } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
 import { startAnalysis } from "@/lib/pipeline/enqueue";
 import { MAX_UPLOAD_BYTES, MIME_TYPES, detectFileKind } from "@/lib/pipeline/file-type";
+import { findDuplicate } from "@/lib/privacy/retention";
+import { limitRequest } from "@/lib/security/guard";
 import { getStorage } from "@/lib/storage";
 
 export const maxDuration = 300;
@@ -35,6 +37,9 @@ export async function POST(request: Request) {
     return fail(403, "Your role can view contracts but not upload them.");
   }
 
+  const limited = await limitRequest("upload", user.id);
+  if (limited) return limited;
+
   const declaredLength = Number(request.headers.get("content-length") ?? 0);
   if (declaredLength > MAX_UPLOAD_BYTES + 1024 * 1024) {
     return fail(413, "The file is larger than 20 MB.");
@@ -55,6 +60,16 @@ export async function POST(request: Request) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const kind = detectFileKind(bytes, file.name);
   if (!kind) return fail(415, "Upload a PDF, a Word document (.docx) or a text file.");
+
+  // The same file uploaded again (not as a new version): reuse the earlier
+  // analysis instead of spending the model quota twice.
+  const fileHash = createHash("sha256").update(bytes).digest("hex");
+  if (form.get("parentId") === null && form.get("force") === null) {
+    const duplicate = await withOrg(org.id, (tx) => findDuplicate(tx, fileHash));
+    if (duplicate) {
+      return Response.json({ id: duplicate.id, duplicate: true }, { status: 200 });
+    }
+  }
 
   const contractId = randomUUID();
   // The key is built from ids only; the uploader's file name never reaches storage.
@@ -81,7 +96,7 @@ export async function POST(request: Request) {
         fileName: file.name.slice(0, 255),
         mimeType: MIME_TYPES[kind],
         sizeBytes: bytes.length,
-        fileHash: createHash("sha256").update(bytes).digest("hex"),
+        fileHash,
       });
     });
     jobId = created.job.id;

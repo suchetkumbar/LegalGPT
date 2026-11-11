@@ -6,6 +6,7 @@ import { retrieve } from "@/lib/ask/retrieve";
 import { getApiAuthContext } from "@/lib/auth/context";
 import { isUuid } from "@/lib/contracts/ids";
 import { withOrg } from "@/lib/db";
+import { limitRequest } from "@/lib/security/guard";
 import { BudgetExceededError, assertWithinBudget, recordUsage } from "@/lib/usage/budget";
 
 export const maxDuration = 300;
@@ -29,6 +30,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   const { question, contractId, deep } = parsed.data;
+  const limited = await limitRequest("ai", context.user.id);
+  if (limited) return limited;
   try {
     await withOrg(context.org.id, assertWithinBudget);
   } catch (error) {

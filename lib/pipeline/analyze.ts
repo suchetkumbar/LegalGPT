@@ -3,7 +3,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import * as schema from "@/lib/db/schema";
 import type { OrgTx } from "@/lib/db/tenant";
 
-import type { PipelineAi, TokenUsage } from "./ai";
+import { ModelSkippedError, type PipelineAi, type TokenUsage } from "./ai";
 import type { ClauseType } from "./clause-types";
 import { assessContract } from "./assess";
 import { classifySegments } from "./classify";
@@ -627,11 +627,13 @@ export async function failAnalysis(
       message =
         error instanceof DocumentError
           ? error.message
-          : error instanceof BudgetExceededError
-            ? "The organisation's monthly AI budget is used up, so only the rule-based review ran. An admin can raise the budget on the Usage page."
-            : modelStage
-              ? MODEL_FAILURE
-              : GENERIC_FAILURE;
+          : error instanceof ModelSkippedError
+            ? 'This sample was loaded with the rule-based review only, to save AI quota. Use "Run analysis again" for the full review.'
+            : error instanceof BudgetExceededError
+              ? "The organisation's monthly AI budget is used up, so only the rule-based review ran. An admin can raise the budget on the Usage page."
+              : modelStage
+                ? MODEL_FAILURE
+                : GENERIC_FAILURE;
 
       await tx
         .update(jobs)

@@ -52,3 +52,21 @@ export const DOCUMENT_IS_DATA =
 export function escapeDocument(text: string): string {
   return text.replace(/<\/?document/gi, (tag) => tag.replace("<", "‹"));
 }
+
+/** Raised by `rulesOnlyAi`: the AI steps were skipped on purpose. */
+export class ModelSkippedError extends Error {
+  constructor() {
+    super("AI steps skipped");
+    this.name = "ModelSkippedError";
+  }
+}
+
+/** For loading sample contracts without spending model quota. */
+export const rulesOnlyAi: PipelineAi = {
+  generateStructured: async () => {
+    throw new ModelSkippedError();
+  },
+  embed: async () => {
+    throw new ModelSkippedError();
+  },
+};

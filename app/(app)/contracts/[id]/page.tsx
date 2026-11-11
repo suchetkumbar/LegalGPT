@@ -9,6 +9,7 @@ import { ContractViewer } from "@/components/contracts/contract-viewer";
 import { AskPanel } from "@/components/ask/ask-panel";
 import { WorkflowControls } from "@/components/collab/workflow-controls";
 import { ComplianceMatrix } from "@/components/contracts/compliance-matrix";
+import { DeleteContract } from "@/components/contracts/contract-admin";
 import { KeyDetails } from "@/components/contracts/key-details";
 import { OurPartySelect } from "@/components/contracts/our-party-select";
 import { RetryAnalysis } from "@/components/contracts/retry-analysis";
@@ -124,6 +125,7 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
               {action.label}
             </a>
           ))}
+          {canEditContracts(user) && <DeleteContract contractId={contract.id} />}
         </nav>
       )}
 

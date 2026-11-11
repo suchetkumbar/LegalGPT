@@ -5,6 +5,7 @@ import { canEditContracts, getApiAuthContext } from "@/lib/auth/context";
 import { getFullContract } from "@/lib/contracts/full";
 import { isUuid } from "@/lib/contracts/ids";
 import { withOrg } from "@/lib/db";
+import { limitRequest } from "@/lib/security/guard";
 import { BudgetExceededError, assertWithinBudget, recordUsage } from "@/lib/usage/budget";
 import {
   draftProposals,
@@ -71,6 +72,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "No such findings." }, { status: 400 });
 
   if (!useModel) return Response.json({ proposals: playbookProposals(inputs) });
+  const limited = await limitRequest("ai", context.user.id);
+  if (limited) return limited;
   try {
     await withOrg(context.org.id, assertWithinBudget);
   } catch (error) {

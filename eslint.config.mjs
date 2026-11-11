@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // k6 scripts run in k6, not Node, and need an unnamed default export.
+    "loadtest/**",
   ]),
 ]);
 

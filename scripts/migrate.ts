@@ -29,6 +29,7 @@ const EXPECTED_TABLES = [
   "orgs",
   "playbook_positions",
   "playbooks",
+  "rate_limits",
   "rule_packs",
   "usage_events",
   "users",

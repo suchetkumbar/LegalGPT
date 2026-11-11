@@ -4,6 +4,7 @@ import { pipelineAi } from "@/lib/ai/generate";
 import { canEditContracts, getApiAuthContext } from "@/lib/auth/context";
 import { loadPacks } from "@/lib/compliance/store";
 import { withOrg } from "@/lib/db";
+import { limitRequest } from "@/lib/security/guard";
 import { BudgetExceededError, assertWithinBudget, recordUsage } from "@/lib/usage/budget";
 import {
   assembleDraft,
@@ -96,6 +97,8 @@ export async function POST(request: Request) {
     throw error;
   }
 
+  const limited = await limitRequest("ai", context.user.id);
+  if (limited) return limited;
   try {
     const refined = await refineDraft(pipelineAi, {
       text: input.text,

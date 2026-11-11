@@ -57,8 +57,13 @@ export default function Home() {
         </ul>
       </main>
 
-      <footer className="mx-auto w-full max-w-5xl px-6 py-6">
+      <footer className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-6">
         <Disclaimer />
+        <nav className="text-muted-foreground flex gap-4 text-xs">
+          <Link href="/docs">How it works</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/dpa">Data processing</Link>
+        </nav>
       </footer>
     </div>
   );

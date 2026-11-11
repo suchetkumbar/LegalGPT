@@ -4,6 +4,7 @@ import { getApiAuthContext } from "@/lib/auth/context";
 import { addComment } from "@/lib/collab/workflow";
 import { isUuid } from "@/lib/contracts/ids";
 import { withOrg } from "@/lib/db";
+import { limitRequest } from "@/lib/security/guard";
 
 const body = z.object({ body: z.string().trim().min(1).max(4000) });
 
@@ -14,6 +15,8 @@ export async function POST(
 ) {
   const context = await getApiAuthContext();
   if (!context) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const limited = await limitRequest("comment", context.user.id);
+  if (limited) return limited;
   const parsed = body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return Response.json({ error: "A comment needs some text." }, { status: 400 });

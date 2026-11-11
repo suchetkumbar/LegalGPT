@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ContractList } from "@/components/contracts/contract-list";
+import { LoadSamples } from "@/components/contracts/contract-admin";
 import { UploadDropzone } from "@/components/contracts/upload-dropzone";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,6 +41,7 @@ async function Dashboard() {
 
       <section aria-label="Contracts">
         <ContractList contracts={contracts} />
+        {contracts.length === 0 && canEditContracts(user) && <LoadSamples />}
       </section>
     </div>
   );

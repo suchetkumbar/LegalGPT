@@ -35,17 +35,18 @@ Everything else in `.env.example` is optional in development.
 
 ## Commands
 
-| Command                                | What it does                                                                  |
-| -------------------------------------- | ----------------------------------------------------------------------------- |
-| `npm run dev`                          | Start the dev server                                                          |
-| `npm run check`                        | Lint, typecheck, test and format check (what CI runs)                         |
-| `npm run test`                         | Unit tests and row-level security tests                                       |
-| `npm run db:generate`                  | Generate a migration after editing `lib/db/schema.ts`                         |
-| `npm run db:migrate`                   | Apply migrations to `DATABASE_URL`                                            |
-| `npm run format`                       | Format with Prettier                                                          |
-| `npm run eval:segmentation`            | Score clause segmentation on the 30 generated contracts (rules only, offline) |
-| `npm run eval:risk`                    | Score the rule engine on 30 generated contracts with planted risks (offline)  |
-| `npm run eval:segmentation -- --model` | The same with the Gemini pass: one call per contract, cached                  |
+| Command                                | What it does                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| `npm run dev`                          | Start the dev server                                                                  |
+| `npm run check`                        | Lint, typecheck, test and format check (what CI runs)                                 |
+| `npm run test`                         | Unit tests and row-level security tests                                               |
+| `npm run db:generate`                  | Generate a migration after editing `lib/db/schema.ts`                                 |
+| `npm run db:migrate`                   | Apply migrations to `DATABASE_URL`                                                    |
+| `npm run format`                       | Format with Prettier                                                                  |
+| `npm run eval:segmentation`            | Score clause segmentation on the 30 generated contracts (rules only, offline)         |
+| `npm run eval:gate`                    | Fail if an offline evaluation drops 3 points below `evals/baseline.json` (runs in CI) |
+| `npm run eval:risk`                    | Score the rule engine on 30 generated contracts with planted risks (offline)          |
+| `npm run eval:segmentation -- --model` | The same with the Gemini pass: one call per contract, cached                          |
 
 ## How the pieces fit
 
@@ -111,6 +112,11 @@ Everything else in `.env.example` is optional in development.
   threads; `/audit` shows the audit trail. `/analytics` summarises the portfolio,
   `/bulk` scans a zip of contracts through a throttled queue, and `/usage` shows
   model usage against an optional monthly token budget (`lib/usage/budget.ts`).
+- **Security and privacy.** Every table has row-level security (tested), uploads
+  and AI actions are rate-limited per user, and contract text reaches a model only
+  inside a data wrapper (tested on 25 poisoned contracts). Admins set a retention
+  period at `/settings`; a daily cron deletes older contracts and sends deadline
+  reminders. `/privacy` and `/dpa` are drafts for a lawyer to finish.
 - **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
   inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
   English only, up to 40 pages. The contract is flagged as read by OCR.

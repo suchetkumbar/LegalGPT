@@ -35,5 +35,10 @@ jobs:
       - name: Test
         run: npm run test
 
+      # Rule-based evaluations, no model calls. Fails if a metric drops more
+      # than 3 points below evals/baseline.json.
+      - name: Evaluation gate
+        run: npm run eval:gate
+
       - name: Format
         run: npm run format:check

@@ -45,6 +45,8 @@ export const orgs = pgTable(
     region: text("region").notNull().default("in"),
     // Monthly ceiling on model tokens. Null means no limit.
     monthlyTokenBudget: integer("monthly_token_budget"),
+    // Contracts older than this many days are deleted by the daily sweep. Null keeps them.
+    retentionDays: integer("retention_days"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -575,6 +577,17 @@ export const usageEvents = pgTable(
     }),
   ],
 ).enableRLS();
+
+/**
+ * Fixed-window request counters for rate limiting. A system table: it is
+ * only touched through the owner connection, so row-level security is on with
+ * no policy, which denies the application role entirely.
+ */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  count: integer("count").notNull().default(0),
+}).enableRLS();
 
 export type Comment = typeof comments.$inferSelect;
 export type BulkScan = typeof bulkScans.$inferSelect;

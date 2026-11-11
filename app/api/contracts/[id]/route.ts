@@ -5,6 +5,8 @@ import { WORKFLOW_STATES, setWorkflow } from "@/lib/collab/workflow";
 import { getContract, setOurParty } from "@/lib/contracts/queries";
 import { isUuid } from "@/lib/contracts/ids";
 import { withOrg } from "@/lib/db";
+import { deleteContract } from "@/lib/privacy/retention";
+import { getStorage } from "@/lib/storage";
 
 /** A contract with its clause outline and latest job. */
 export async function GET(
@@ -101,4 +103,39 @@ export async function PATCH(
     workflowStatus: result.workflowStatus,
     assigneeId: result.assigneeId,
   });
+}
+
+/** Delete a contract and everything derived from it. Admins and reviewers only. */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const context = await getApiAuthContext();
+  if (!context) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canEditContracts(context.user)) {
+    return Response.json(
+      { error: "Your role cannot delete contracts." },
+      { status: 403 },
+    );
+  }
+  const { id } = await params;
+  const deleted = isUuid(id)
+    ? await withOrg(context.org.id, (tx) =>
+        deleteContract(tx, {
+          contractId: id,
+          actorId: context.user.id,
+          reason: "deleted by a user",
+        }),
+      )
+    : null;
+  if (!deleted) return Response.json({ error: "Not found" }, { status: 404 });
+  await getStorage()
+    .delete(deleted.storageKey)
+    .catch((error) => {
+      console.error(
+        "[delete] file removal failed:",
+        error instanceof Error ? error.message : error,
+      );
+    });
+  return Response.json({ deleted: id });
 }
