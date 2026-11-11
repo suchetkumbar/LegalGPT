@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794347099959,
+      "tag": "0000_setup_roles_and_extensions",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794347101851,
+      "tag": "0001_orgs_users_audit_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794347170780,
+      "tag": "0002_audit_log_append_only",
+      "breakpoints": true
+    }
+  ]
+}

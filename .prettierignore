@@ -1,0 +1,7 @@
+.next
+node_modules
+drizzle
+package-lock.json
+next-env.d.ts
+docs/PROJECT_PLAN.md
+AGENTS.md
