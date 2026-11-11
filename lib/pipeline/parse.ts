@@ -1,18 +1,23 @@
+import { DocumentError } from "./errors";
 import type { FileKind } from "./file-type";
+import { acceptOcr, type OcrFunction } from "./ocr";
+
+export { DocumentError };
 
 export type ParsedDocument = {
   /** Normalised plain text. Every clause offset indexes into this string. */
   text: string;
   pageCount: number | null;
+  /** True when the text came from OCR of a scan rather than from the file itself. */
+  ocr: boolean;
 };
 
-/** A problem with the document itself, safe to show to the user as written. */
-export class DocumentError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "DocumentError";
-  }
-}
+export type ParseOptions = {
+  /** Reads a scanned PDF. Defaults to Tesseract (./ocr.ts); tests pass a fake. */
+  ocr?: OcrFunction;
+  /** Called when OCR starts, so progress can say why this document is slow. */
+  onOcrStart?: () => void | Promise<void>;
+};
 
 /** Below this many characters per page, a PDF is almost certainly a scan. */
 const MIN_CHARS_PER_PDF_PAGE = 80;
@@ -29,16 +34,19 @@ export function normaliseText(raw: string): string {
       // Form feeds and vertical tabs mark page or section breaks.
       .replace(/[\f\v]/g, "\n")
       // Zero-width characters, soft hyphens and the byte-order mark.
-      .replace(/[​-‍⁠­﻿]/g, "")
+      .replace(/[\u200b-\u200d\u2060\u00ad\ufeff]/g, "")
       // Non-breaking and other unusual spaces, and tabs, become plain spaces.
-      .replace(/[\t   -   　]/g, " ")
+      .replace(/[\t\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000]/g, " ")
       .replace(/ +$/gm, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim()
   );
 }
 
-async function parsePdf(bytes: Uint8Array): Promise<ParsedDocument> {
+async function parsePdf(
+  bytes: Uint8Array,
+  options: ParseOptions,
+): Promise<ParsedDocument> {
   const { extractTextItems } = await import("unpdf");
   let pages;
   try {
@@ -62,13 +70,19 @@ async function parsePdf(bytes: Uint8Array): Promise<ParsedDocument> {
   });
 
   const text = normaliseText(pageTexts.join("\n\n"));
-  if (text.length < MIN_CHARS_PER_PDF_PAGE * Math.max(1, pages.totalPages)) {
-    throw new DocumentError(
-      "This PDF looks like a scan: it has pages but almost no selectable text. " +
-        "Scanned documents are not supported yet.",
-    );
+  if (text.length >= MIN_CHARS_PER_PDF_PAGE * Math.max(1, pages.totalPages)) {
+    return { text, pageCount: pages.totalPages, ocr: false };
   }
-  return { text, pageCount: pages.totalPages };
+
+  // Pages but almost no selectable text: a scan. Read the page images instead.
+  await options.onOcrStart?.();
+  const ocr = options.ocr ?? (await import("./ocr")).ocrPdf;
+  const result = await ocr(bytes);
+  return {
+    text: normaliseText(acceptOcr(result)),
+    pageCount: result.pageCount,
+    ocr: true,
+  };
 }
 
 async function parseDocx(bytes: Uint8Array): Promise<ParsedDocument> {
@@ -79,21 +93,23 @@ async function parseDocx(bytes: Uint8Array): Promise<ParsedDocument> {
   } catch {
     throw new DocumentError("This Word document could not be read. It may be damaged.");
   }
-  return { text: normaliseText(raw.value), pageCount: null };
+  return { text: normaliseText(raw.value), pageCount: null, ocr: false };
 }
 
 export async function parseDocument(
   bytes: Uint8Array,
   kind: FileKind,
+  options: ParseOptions = {},
 ): Promise<ParsedDocument> {
   const parsed =
     kind === "pdf"
-      ? await parsePdf(bytes)
+      ? await parsePdf(bytes, options)
       : kind === "docx"
         ? await parseDocx(bytes)
         : {
             text: normaliseText(new TextDecoder("utf-8").decode(bytes)),
             pageCount: null,
+            ocr: false,
           };
 
   if (parsed.text.length === 0) {

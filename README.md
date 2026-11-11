@@ -35,14 +35,16 @@ Everything else in `.env.example` is optional in development.
 
 ## Commands
 
-| Command               | What it does                                          |
-| --------------------- | ----------------------------------------------------- |
-| `npm run dev`         | Start the dev server                                  |
-| `npm run check`       | Lint, typecheck, test and format check (what CI runs) |
-| `npm run test`        | Unit tests and row-level security tests               |
-| `npm run db:generate` | Generate a migration after editing `lib/db/schema.ts` |
-| `npm run db:migrate`  | Apply migrations to `DATABASE_URL`                    |
-| `npm run format`      | Format with Prettier                                  |
+| Command                                | What it does                                                                  |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| `npm run dev`                          | Start the dev server                                                          |
+| `npm run check`                        | Lint, typecheck, test and format check (what CI runs)                         |
+| `npm run test`                         | Unit tests and row-level security tests                                       |
+| `npm run db:generate`                  | Generate a migration after editing `lib/db/schema.ts`                         |
+| `npm run db:migrate`                   | Apply migrations to `DATABASE_URL`                                            |
+| `npm run format`                       | Format with Prettier                                                          |
+| `npm run eval:segmentation`            | Score clause segmentation on the 30 generated contracts (rules only, offline) |
+| `npm run eval:segmentation -- --model` | The same with the Gemini pass: one call per contract, cached                  |
 
 ## How the pieces fit
 
@@ -73,6 +75,9 @@ Everything else in `.env.example` is optional in development.
   law, and the clauses are embedded for search. Every extracted fact must quote
   the contract, and the server drops any whose quote is not in the text.
   Sample contracts for trying it out are in `tests/fixtures/contracts/`.
+- **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
+  inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
+  English only, up to 40 pages. The contract is flagged as read by OCR.
 - **Background jobs.** With Inngest configured, the stages run as retryable
   steps (`inngest/functions/analyze.ts`). Without it, they run in the app's own
   process after the upload response. If a model step fails, for example because

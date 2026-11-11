@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   bigint,
+  boolean,
   index,
   integer,
   jsonb,
@@ -143,6 +144,8 @@ export const contracts = pgTable(
     // Normalised plain text. Clause offsets index into this string.
     text: text("text"),
     pageCount: integer("page_count"),
+    // True when the text was read from a scan by OCR, so it may contain misreads.
+    ocrUsed: boolean("ocr_used").notNull().default(false),
     // Earlier version of the same contract, if any.
     parentId: uuid("parent_id").references((): AnyPgColumn => contracts.id, {
       onDelete: "set null",

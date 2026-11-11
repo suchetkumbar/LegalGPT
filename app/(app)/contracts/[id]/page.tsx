@@ -63,6 +63,16 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
               canRetry={canEditContracts(user)}
             />
           )}
+          {contract.ocrUsed && (
+            <p
+              role="note"
+              className="text-muted-foreground rounded-lg border px-5 py-3 text-sm"
+            >
+              This document was a scan, so its text was read by OCR and may contain
+              misread characters. Check important wording against the original before
+              relying on it.
+            </p>
+          )}
           <KeyDetails contractType={contract.type} entities={entities} />
           <ContractViewer text={contract.text} clauses={clauses} />
         </>

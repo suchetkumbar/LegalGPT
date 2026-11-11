@@ -226,6 +226,142 @@ describe("segmentContract edge cases", () => {
     expect(labels(segmentContract(text))).toEqual(["1", "1.1", "1.2"]);
   });
 
+  it('reads "1)" and "(1)" numbering, and leaves a bracketed list inside a clause alone', () => {
+    const paren = [
+      "1) Term",
+      "One year.",
+      "",
+      "2) Fees",
+      "Monthly.",
+      "",
+      "3) Law",
+      "India.",
+    ];
+    expect(labels(segmentContract(paren.join("\n")))).toEqual(["1", "2", "3"]);
+
+    const bracket = ["(1) TERM", "One year.", "", "(2) FEES", "Monthly."];
+    expect(labels(segmentContract(bracket.join("\n")))).toEqual(["1", "2"]);
+
+    // The document numbers clauses "1.", so "(2)" is a list item, not clause 2.
+    const mixed = [
+      "1. Conditions",
+      "The following conditions apply:",
+      "(1) the goods are delivered; and",
+      "(2) the invoice is received.",
+      "",
+      "2. Fees",
+      "Monthly.",
+    ];
+    const segments = segmentContract(mixed.join("\n"));
+    expect(labels(segments)).toEqual(["1", "2"]);
+    expect(segments[0].text).toContain("(2) the invoice is received.");
+  });
+
+  it("rejoins a clause number that was split from its heading", () => {
+    const text = [
+      "1.",
+      "TERM",
+      "One year.",
+      "",
+      "2.",
+      "FEES",
+      "",
+      "2.1 Fees are payable monthly.",
+      "2.2 Late fees attract interest.",
+    ].join("\n");
+    const segments = segmentContract(text);
+
+    expect(labels(segments)).toEqual(["1", "2.1", "2.2"]);
+    expect(segments[0].heading).toBe("Term");
+    expect(segments[1].heading).toBe("Fees");
+  });
+
+  it("recovers after several clause headings are lost in a row", () => {
+    const text = [
+      "1. TERM",
+      "One year.",
+      "",
+      "2. FEES",
+      "Monthly. 3. TAXES Extra. 4. NOTICES By post. 5. WAIVER None.",
+      "",
+      "6. GOVERNING LAW",
+      "India.",
+      "",
+      "7. GENERAL",
+      "Entire agreement.",
+    ].join("\n");
+
+    expect(labels(segmentContract(text))).toEqual(["1", "2", "6", "7"]);
+  });
+
+  it("does not jump ahead on a number that merely starts a wrapped sentence", () => {
+    const text = [
+      "1. TERM",
+      "The term is one year and may be extended by",
+      "5. years at the option of the Client.",
+      "",
+      "2. FEES",
+      "Monthly.",
+    ].join("\n");
+
+    expect(labels(segmentContract(text))).toEqual(["1", "2"]);
+  });
+
+  it("picks up sub-clauses whose parent heading was lost", () => {
+    const text = [
+      "1. TERM",
+      "",
+      "1.1 One year.",
+      "1.2 Renewable. 2. FEES",
+      "",
+      "2.1 Fees are payable monthly.",
+      "2.2 Late fees attract interest.",
+      "",
+      "3. LAW",
+      "India.",
+    ].join("\n");
+    const segments = segmentContract(text);
+
+    expect(labels(segments)).toEqual(["1.1", "1.2", "2.1", "2.2", "3"]);
+    // The lost heading is not guessed: 2.1 must not inherit "Term".
+    expect(segments[2].heading).toBeNull();
+    expect(segments[3].heading).toBeNull();
+  });
+
+  it("keeps recitals and the signature block in a contract with no numbering", () => {
+    const text = [
+      "LEAVE AND LICENCE AGREEMENT",
+      "Made at Mumbai between the Licensor and the Licensee.",
+      "",
+      "WHEREAS the Licensor owns the premises;",
+      "",
+      "LICENCE FEE",
+      "Rs. 45,000 per month.",
+      "",
+      "SECURITY DEPOSIT",
+      "Rs. 2,00,000, interest free.",
+      "",
+      "LOCK-IN PERIOD",
+      "Eleven months.",
+      "",
+      "IN WITNESS WHEREOF the parties have signed.",
+      "",
+      "SCHEDULE A - PREMISES",
+      "",
+      "FLAT 12, SEA VIEW",
+    ].join("\n");
+
+    expect(segmentContract(text).map((s) => s.heading)).toEqual([
+      "Preamble",
+      "Recitals",
+      "Licence Fee",
+      "Security Deposit",
+      "Lock-In Period",
+      "Signatures",
+      "Schedule A Premises",
+    ]);
+  });
+
   it("falls back to capitalised headings when nothing is numbered", () => {
     const text = [
       "LEAVE AND LICENCE AGREEMENT",

@@ -36,6 +36,13 @@
       "when": 1794376949382,
       "tag": "0004_entities",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794379516213,
+      "tag": "0005_contract_ocr_flag",
+      "breakpoints": true
     }
   ]
 }

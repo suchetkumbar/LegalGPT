@@ -10,6 +10,7 @@ export type JobProgress = {
 const STAGE_LABELS: Record<string, string> = {
   queued: "Waiting to start",
   parse: "Reading the document",
+  ocr: "Reading a scanned document (this is slower)",
   segment: "Finding the clauses",
   classify: "Labelling each clause",
   extract: "Picking out parties, dates and amounts",
@@ -20,6 +21,7 @@ const STAGE_LABELS: Record<string, string> = {
 const STAGE_PERCENT: Record<string, number> = {
   queued: 5,
   parse: 15,
+  ocr: 20,
   segment: 30,
   classify: 50,
   extract: 70,

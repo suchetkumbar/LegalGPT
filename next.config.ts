@@ -4,6 +4,22 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // OCR: the native canvas and the Tesseract worker must be loaded from
+  // node_modules at run time, not bundled.
+  serverExternalPackages: ["tesseract.js", "@napi-rs/canvas"],
+  // Files OCR opens by path, which the build cannot discover by itself.
+  outputFileTracingIncludes: {
+    "/api/contracts": [
+      "./node_modules/@tesseract.js-data/eng/4.0.0_best_int/**",
+      "./node_modules/tesseract.js/src/worker-script/**",
+      "./node_modules/tesseract.js-core/**",
+    ],
+    "/api/inngest": [
+      "./node_modules/@tesseract.js-data/eng/4.0.0_best_int/**",
+      "./node_modules/tesseract.js/src/worker-script/**",
+      "./node_modules/tesseract.js-core/**",
+    ],
+  },
   experimental: {
     // Uploads pass through proxy.ts, which buffers request bodies. The default
     // cap is 10 MB; contracts may be up to 20 MB.

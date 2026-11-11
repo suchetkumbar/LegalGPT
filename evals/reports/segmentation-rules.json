@@ -1,0 +1,153 @@
+{
+  "mode": "rules only",
+  "complete": true,
+  "gates": {
+    "boundaryF1": 0.95,
+    "typeAccuracy": 0.9
+  },
+  "all": {
+    "contracts": 30,
+    "gold": 549,
+    "predicted": 532,
+    "matched": 522,
+    "typed": 0,
+    "precision": 0.981203007518797,
+    "recall": 0.9508196721311475,
+    "f1": 0.9657724329324698,
+    "typeAccuracy": 0
+  },
+  "clean": {
+    "contracts": 20,
+    "gold": 364,
+    "predicted": 364,
+    "matched": 364,
+    "typed": 0,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1,
+    "typeAccuracy": 0
+  },
+  "noisy": {
+    "contracts": 10,
+    "gold": 185,
+    "predicted": 168,
+    "matched": 158,
+    "typed": 0,
+    "precision": 0.9404761904761905,
+    "recall": 0.8540540540540541,
+    "f1": 0.8951841359773373,
+    "typeAccuracy": 0
+  },
+  "byStyle": {
+    "dotted-caps-subs": {
+      "contracts": 3,
+      "gold": 97,
+      "predicted": 97,
+      "matched": 96,
+      "typed": 0,
+      "precision": 0.9896907216494846,
+      "recall": 0.9896907216494846,
+      "f1": 0.9896907216494846,
+      "typeAccuracy": 0
+    },
+    "nodot-title-subs": {
+      "contracts": 3,
+      "gold": 71,
+      "predicted": 71,
+      "matched": 69,
+      "typed": 0,
+      "precision": 0.971830985915493,
+      "recall": 0.971830985915493,
+      "f1": 0.971830985915493,
+      "typeAccuracy": 0
+    },
+    "dotted-title-flat": {
+      "contracts": 3,
+      "gold": 57,
+      "predicted": 54,
+      "matched": 54,
+      "typed": 0,
+      "precision": 1,
+      "recall": 0.9473684210526315,
+      "f1": 0.972972972972973,
+      "typeAccuracy": 0
+    },
+    "clause-colon": {
+      "contracts": 3,
+      "gold": 50,
+      "predicted": 47,
+      "matched": 47,
+      "typed": 0,
+      "precision": 1,
+      "recall": 0.94,
+      "f1": 0.9690721649484536,
+      "typeAccuracy": 0
+    },
+    "article-roman": {
+      "contracts": 3,
+      "gold": 42,
+      "predicted": 40,
+      "matched": 40,
+      "typed": 0,
+      "precision": 1,
+      "recall": 0.9523809523809523,
+      "f1": 0.975609756097561,
+      "typeAccuracy": 0
+    },
+    "section-dash-subs": {
+      "contracts": 3,
+      "gold": 73,
+      "predicted": 73,
+      "matched": 73,
+      "typed": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "typeAccuracy": 0
+    },
+    "inline-heading": {
+      "contracts": 3,
+      "gold": 31,
+      "predicted": 27,
+      "matched": 24,
+      "typed": 0,
+      "precision": 0.8888888888888888,
+      "recall": 0.7741935483870968,
+      "f1": 0.8275862068965517,
+      "typeAccuracy": 0
+    },
+    "caps-unnumbered": {
+      "contracts": 3,
+      "gold": 43,
+      "predicted": 44,
+      "matched": 40,
+      "typed": 0,
+      "precision": 0.9090909090909091,
+      "recall": 0.9302325581395349,
+      "f1": 0.9195402298850575,
+      "typeAccuracy": 0
+    },
+    "paren-number": {
+      "contracts": 3,
+      "gold": 30,
+      "predicted": 30,
+      "matched": 30,
+      "typed": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "typeAccuracy": 0
+    },
+    "bracket-number": {
+      "contracts": 3,
+      "gold": 55,
+      "predicted": 49,
+      "matched": 49,
+      "typed": 0,
+      "precision": 1,
+      "recall": 0.8909090909090909,
+      "f1": 0.9423076923076923,
+      "typeAccuracy": 0
+    }
+  }
+}

@@ -46,7 +46,7 @@ describe("detectFileKind", () => {
 
 describe("normaliseText", () => {
   it("produces one canonical form", () => {
-    const raw = "﻿Line one\r\nLine two  \r\n\r\n\r\n\r\nLine\tthree​\f";
+    const raw = "\ufeffLine one\r\nLine\u00a0two  \r\n\r\n\r\n\r\nLine\tthree\u200b\f";
     expect(normaliseText(raw)).toBe("Line one\nLine two\n\nLine three");
   });
 });
@@ -54,7 +54,11 @@ describe("normaliseText", () => {
 describe("parseDocument", () => {
   it("reads plain text", async () => {
     const parsed = await parseDocument(encode(CONTRACT_LINES.join("\r\n")), "txt");
-    expect(parsed).toEqual({ text: CONTRACT_LINES.join("\n"), pageCount: null });
+    expect(parsed).toEqual({
+      text: CONTRACT_LINES.join("\n"),
+      pageCount: null,
+      ocr: false,
+    });
   });
 
   it("reads a PDF and keeps its line structure, so clauses can be found", async () => {
@@ -82,10 +86,48 @@ describe("parseDocument", () => {
     ]);
   });
 
-  it("reports a PDF with no selectable text as a scan", async () => {
-    await expect(parseDocument(makePdf([""]), "pdf")).rejects.toThrow(
-      /looks like a scan/,
-    );
+  it("sends a PDF with no selectable text to OCR and flags the result", async () => {
+    const seen: string[] = [];
+    const parsed = await parseDocument(makePdf([""]), "pdf", {
+      onOcrStart: () => void seen.push("started"),
+      ocr: async () => ({
+        text: "1. Term\r\nThis Agreement is valid for one year.\n\n2. Fees\nMonthly.",
+        pageCount: 3,
+        confidence: 91,
+      }),
+    });
+
+    expect(seen).toEqual(["started"]);
+    expect(parsed).toEqual({
+      text: "1. Term\nThis Agreement is valid for one year.\n\n2. Fees\nMonthly.",
+      pageCount: 3,
+      ocr: true,
+    });
+  });
+
+  it("does not use OCR when a PDF has real text", async () => {
+    const parsed = await parseDocument(makePdf(CONTRACT_LINES), "pdf", {
+      ocr: async () => {
+        throw new Error("OCR must not run");
+      },
+    });
+    expect(parsed.ocr).toBe(false);
+  });
+
+  it("rejects a scan that OCR cannot read reliably", async () => {
+    const blank = { text: "  \n ", pageCount: 1, confidence: 95 };
+    await expect(
+      parseDocument(makePdf([""]), "pdf", { ocr: async () => blank }),
+    ).rejects.toThrow(/no readable text/);
+
+    const faint = {
+      text: "l. T3rm Th1s Agr33m3nt 1s va1id f0r 0ne y3ar fr0m s1gn1ng",
+      pageCount: 1,
+      confidence: 31,
+    };
+    await expect(
+      parseDocument(makePdf([""]), "pdf", { ocr: async () => faint }),
+    ).rejects.toThrow(/too faint or skewed/);
   });
 
   it("reports unreadable files without leaking parser internals", async () => {

@@ -127,7 +127,55 @@ Deviations:
 - **Calls per contract:** one classify call per 60 clauses, one extract call, one
   embedding call per 100 clauses. A typical contract uses three calls.
 
-### 1c — OCR and evaluation
+### 1c — OCR and evaluation (built; live evaluation only partly run)
 
-OCR for scanned PDFs; the 30-contract set for the exit criteria (boundaries ≥ 95%,
-types ≥ 90%, a 20-page contract ingested in under 60 seconds).
+| Plan item                     | Status                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| OCR fallback for scanned PDFs | Done with Tesseract inside the app; tested locally on an image-only PDF. Not yet verified on Vercel |
+| 30-contract test set          | Done: generated Indian-style contracts with exact gold labels (`evals/generator`)                   |
+| Evaluation harness            | Done: `npm run eval:segmentation` (rules only) and `-- --model` (adds Gemini)                       |
+
+Owner decisions (2026-11-11): OCR with Tesseract in the app rather than Gemini;
+evaluation on generated contracts rather than real ones; live evaluation stopped
+after the first failed call.
+
+How the evaluation set is built: 30 contracts composed from a hand-typed clause
+library, three in each of ten numbering styles. Twenty are clean. Ten carry the
+damage PDF extraction causes: clauses run together on one line, a clause number
+split from its heading, and page headers and footers in the text.
+
+Rule changes the evaluation led to: `1)` and `(1)` numbering; recitals and
+signature blocks in unnumbered contracts; a clause number alone on a line with its
+heading on the next; recovery when several headings in a row are lost; sub-clauses
+whose parent heading is lost.
+
+Deviations:
+
+- **OCR is English only** and capped at 40 pages per scan. A contract read by OCR
+  is flagged (`contracts.ocr_used`) and the viewer says so.
+- **The evaluation set is generated, not real contracts.** It measures how the
+  pipeline copes with formatting variety and extraction damage. It says little
+  about real drafting, and the clean score is weak evidence because the contracts
+  and the rules have the same author.
+
+### Phase 1 exit criteria
+
+| Criterion                                                 | Result                                                                                                                                    | Status                                                                  |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Clause boundaries at least 95% correct on 30 contracts    | Rules only, all 30: F1 96.6% (clean 100%, noisy 89.5%). Rules + Gemini: 99.6% on the 4 contracts scored before the run stopped            | Rules-only figure passes; the full rules + model figure is not measured |
+| Type labels at least 90% correct                          | 99.1% on 4 contracts (115 clauses; one disagreement, taxes labelled as payment)                                                           | Not measured on the full set                                            |
+| A 20-page contract finishes ingestion in under 60 seconds | Parsing and segmentation take a few milliseconds. In the 1b live test, typing 25 clauses took 4.1 s, extraction 2.7 s and embedding 2.3 s | Not measured on a 20-page contract                                      |
+
+To finish the measurement: `npm run eval:segmentation -- --model --delay 15000`.
+It makes one Gemini call per contract not already cached (26 remain), stops at
+the first failure and prints the provider's error. The fifth call of the first
+run failed for a reason that was not recorded; a free-tier per-minute limit is
+suspected, not confirmed.
+
+### Open items carried forward (Phase 1)
+
+- Finish the live evaluation and the 20-page timing (above).
+- Confirm OCR works on Vercel: it relies on a native canvas module and on files
+  the build is told to include (`next.config.ts`), which only a deploy can prove.
+- Add real, hand-labelled Indian contracts to the evaluation set.
+- Hindi OCR needs the Hindi language data package.

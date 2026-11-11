@@ -1,0 +1,65 @@
+{
+  "mode": "rules + model",
+  "complete": false,
+  "gates": {
+    "boundaryF1": 0.95,
+    "typeAccuracy": 0.9
+  },
+  "all": {
+    "contracts": 4,
+    "gold": 115,
+    "predicted": 116,
+    "matched": 115,
+    "typed": 114,
+    "precision": 0.9913793103448276,
+    "recall": 1,
+    "f1": 0.9956709956709957,
+    "typeAccuracy": 0.991304347826087
+  },
+  "clean": {
+    "contracts": 3,
+    "gold": 77,
+    "predicted": 77,
+    "matched": 77,
+    "typed": 77,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1,
+    "typeAccuracy": 1
+  },
+  "noisy": {
+    "contracts": 1,
+    "gold": 38,
+    "predicted": 39,
+    "matched": 38,
+    "typed": 37,
+    "precision": 0.9743589743589743,
+    "recall": 1,
+    "f1": 0.9870129870129869,
+    "typeAccuracy": 0.9736842105263158
+  },
+  "byStyle": {
+    "dotted-caps-subs": {
+      "contracts": 3,
+      "gold": 97,
+      "predicted": 98,
+      "matched": 97,
+      "typed": 96,
+      "precision": 0.9897959183673469,
+      "recall": 1,
+      "f1": 0.9948717948717948,
+      "typeAccuracy": 0.9896907216494846
+    },
+    "nodot-title-subs": {
+      "contracts": 1,
+      "gold": 18,
+      "predicted": 18,
+      "matched": 18,
+      "typed": 18,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "typeAccuracy": 1
+    }
+  }
+}

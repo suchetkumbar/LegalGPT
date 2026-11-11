@@ -7,6 +7,7 @@ import type { PipelineAi, TokenUsage } from "./ai";
 import { classifySegments } from "./classify";
 import { extractEntities, pickCounterparty } from "./extract";
 import { detectFileKind } from "./file-type";
+import type { OcrFunction } from "./ocr";
 import { DocumentError, parseDocument } from "./parse";
 import { segmentContract, type Segment } from "./segment";
 
@@ -37,6 +38,8 @@ export type AnalysisDeps = {
   scope: <T>(fn: (tx: OrgTx) => Promise<T>) => Promise<T>;
   readFile: (key: string) => Promise<Uint8Array>;
   ai: PipelineAi;
+  /** Reads scanned PDFs. Defaults to Tesseract; tests pass a fake. */
+  ocr?: OcrFunction;
 };
 
 export type AnalysisIds = { contractId: string; jobId: string };
@@ -110,7 +113,7 @@ const STAGES: Record<
   AnalyzeStage,
   (deps: AnalysisDeps, ids: AnalysisIds) => Promise<void>
 > = {
-  async parse({ scope, readFile }, { contractId }) {
+  async parse({ scope, readFile, ocr }, { contractId, jobId }) {
     const contract = await scope(async (tx) => {
       const [row] = await tx.select().from(contracts).where(eq(contracts.id, contractId));
       if (!row) throw new Error("Contract not found");
@@ -124,12 +127,28 @@ const STAGES: Record<
     const bytes = await readFile(contract.blobUrl);
     const kind = detectFileKind(bytes, contract.fileName);
     if (!kind) throw new DocumentError("This file type is not supported.");
-    const parsed = await parseDocument(bytes, kind);
+    const parsed = await parseDocument(bytes, kind, {
+      ocr,
+      // OCR takes seconds per page; say so rather than appear stuck on "reading".
+      onOcrStart: async () => {
+        await scope((tx) =>
+          tx
+            .update(jobs)
+            .set({ stage: "ocr", updatedAt: new Date() })
+            .where(eq(jobs.id, jobId)),
+        );
+      },
+    });
 
     await scope((tx) =>
       tx
         .update(contracts)
-        .set({ text: parsed.text, pageCount: parsed.pageCount, updatedAt: new Date() })
+        .set({
+          text: parsed.text,
+          pageCount: parsed.pageCount,
+          ocrUsed: parsed.ocr,
+          updatedAt: new Date(),
+        })
         .where(eq(contracts.id, contractId)),
     );
   },
@@ -276,7 +295,8 @@ export async function failAnalysis(
     await deps.scope(async (tx) => {
       const [job] = await tx.select().from(jobs).where(eq(jobs.id, ids.jobId));
       if (!job) return;
-      stage = job.stage === "queued" ? "parse" : job.stage;
+      // "ocr" is a label within the parse stage, not a stage of its own.
+      stage = job.stage === "queued" || job.stage === "ocr" ? "parse" : job.stage;
       // Already recorded (the job runner reports a failure twice): keep the first message.
       if (job.status === "failed") {
         message = job.error ?? message;
@@ -295,7 +315,7 @@ export async function failAnalysis(
 
       await tx
         .update(jobs)
-        .set({ status: "failed", error: message, updatedAt: new Date() })
+        .set({ stage, status: "failed", error: message, updatedAt: new Date() })
         .where(eq(jobs.id, ids.jobId));
       await tx
         .update(contracts)

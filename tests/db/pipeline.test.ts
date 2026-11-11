@@ -147,11 +147,43 @@ describe("analyze pipeline", () => {
     expect(rows).toHaveLength(11);
   });
 
-  it("fails a scanned PDF at the parse stage with a message for the user", async () => {
+  it("reads a scanned PDF by OCR and flags the contract", async () => {
+    const ids = await upload(orgA, userA, "scanned.pdf", makePdf([""]));
+
+    const result = await runAnalysis(
+      {
+        scope: scopeFor(orgA),
+        readFile,
+        ai: fakeAi().ai,
+        ocr: async () => ({
+          text: "LEASE DEED\n\n1. Rent\nRs. 30,000 per month.\n\n2. Deposit\nRs. 1,00,000.",
+          pageCount: 2,
+          confidence: 88,
+        }),
+      },
+      ids,
+    );
+
+    expect(result).toEqual({ ok: true });
+    const detail = await runAsOrg(db, orgA, (tx) => getContract(tx, ids.contractId));
+    expect(detail?.contract).toMatchObject({
+      status: "ready",
+      ocrUsed: true,
+      pageCount: 2,
+    });
+    expect(detail?.clauses.map((c) => c.number)).toEqual([null, "1", "2"]);
+  });
+
+  it("fails an unreadable scan at the parse stage with a message for the user", async () => {
     const ids = await upload(orgA, userA, "scan.pdf", makePdf([""]));
 
     const result = await runAnalysis(
-      { scope: scopeFor(orgA), readFile, ai: fakeAi().ai },
+      {
+        scope: scopeFor(orgA),
+        readFile,
+        ai: fakeAi().ai,
+        ocr: async () => ({ text: "", pageCount: 1, confidence: 0 }),
+      },
       ids,
     );
     expect(result).toMatchObject({ ok: false, stage: "parse" });
@@ -159,7 +191,7 @@ describe("analyze pipeline", () => {
     const detail = await runAsOrg(db, orgA, (tx) => getContract(tx, ids.contractId));
     expect(detail?.contract.status).toBe("failed");
     expect(detail?.job).toMatchObject({ status: "failed", stage: "parse" });
-    expect(detail?.job?.error).toMatch(/looks like a scan/);
+    expect(detail?.job?.error).toMatch(/no readable text/);
     expect(detail?.clauses).toEqual([]);
   });
 

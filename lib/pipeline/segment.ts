@@ -32,7 +32,8 @@ type Marker =
       heading: string | null;
       hasBody: boolean;
     }
-  | { kind: "sub"; start: number; number: string }
+  // `orphan`: the parent's heading line was lost, so there is no heading to inherit.
+  | { kind: "sub"; start: number; number: string; orphan?: boolean }
   | { kind: "part"; start: number; heading: string };
 
 const ROMAN: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100 };
@@ -107,7 +108,21 @@ function headingFromRest(rest: string): { heading: string | null; hasBody: boole
   return { heading: null, hasBody: true };
 }
 
-const TOP_NUMBERED = /^ {0,6}(\d{1,3})(\.?)(?:[ ]+|$)(.*)$/;
+// "1. Term", "1 Term", "1) Term" and "(1) Term".
+const TOP_NUMBERED = /^ {0,6}(\(?)(\d{1,3})([.)]?)(?:[ ]+|$)(.*)$/;
+
+/**
+ * How a document writes its top-level clause numbers. Once the first clause
+ * fixes the style, later clauses must use it too, which is what keeps a
+ * "(2)" list item inside a clause from being read as clause 2.
+ */
+type NumberStyle = "plain" | "paren" | "bracket";
+
+function numberStyle(open: string, close: string): NumberStyle | null {
+  if (open === "(") return close === ")" ? "bracket" : null;
+  if (close === ")") return "paren";
+  return "plain"; // "1." and "1" are the same style: extraction often drops the dot
+}
 const TOP_WORDED =
   /^ {0,6}(clause|article|section)\s+(\d{1,3}|[IVXLC]{1,7})\b\s*[.:\-–—]?\s*(.*)$/i;
 const SUB_NUMBERED = /^ {0,8}(\d{1,3})\.(\d{1,3})\.?(?:[ ]+|$)(?!\d)/;
@@ -121,10 +136,20 @@ function follows(previous: number, candidate: number): boolean {
   return candidate > previous && candidate <= previous + 2;
 }
 
+/**
+ * A wider tolerance for lines that are unmistakably headings ("9. NOTICES").
+ * Without it, two clauses lost in a row would stop every later clause from
+ * being recognised.
+ */
+function followsAfterGap(previous: number, candidate: number): boolean {
+  return previous > 0 && candidate > previous && candidate <= previous + 5;
+}
+
 function findMarkers(lines: Line[]): Marker[] {
   const markers: Marker[] = [];
   let lastTop = 0;
   let lastSub = 0;
+  let topStyle: NumberStyle | null = null;
   let recitalsSeen = false;
   let inAttachment = false;
   let signaturesSeen = false;
@@ -170,6 +195,23 @@ function findMarkers(lines: Line[]): Marker[] {
       if (major === lastTop && follows(lastSub, minor)) {
         markers.push({ kind: "sub", start: line.start, number: `${major}.${minor}` });
         lastSub = minor;
+      } else if (
+        // "8.1" straight after clause 7: clause 8's heading line was lost.
+        // Requiring a capitalised start keeps out a wrapped cross-reference
+        // such as "8.1 above shall apply".
+        lastTop > 0 &&
+        minor === 1 &&
+        follows(lastTop, major) &&
+        /^["“(]?[A-Z]/.test(line.text.slice(sub[0].length))
+      ) {
+        markers.push({
+          kind: "sub",
+          start: line.start,
+          number: `${major}.${minor}`,
+          orphan: true,
+        });
+        lastTop = major;
+        lastSub = 1;
       }
       continue;
     }
@@ -182,7 +224,11 @@ function findMarkers(lines: Line[]): Marker[] {
       let rest = worded[3];
       // "Clause 5 shall survive termination" is a sentence, not a heading.
       const restIsTitle = !rest.trim() || /^["“(]?[A-Z]/.test(rest.trim());
-      if (value !== null && restIsTitle && follows(lastTop, value)) {
+      const sequential =
+        value !== null &&
+        (follows(lastTop, value) ||
+          (followsAfterGap(lastTop, value) && (!rest.trim() || looksLikeHeading(rest))));
+      if (value !== null && restIsTitle && sequential) {
         // The title is sometimes on the following line.
         const next = lines[i + 1];
         if (!rest.trim() && next && looksLikeHeading(next.text)) rest = next.text;
@@ -202,18 +248,29 @@ function findMarkers(lines: Line[]): Marker[] {
 
     const numbered = TOP_NUMBERED.exec(line.text);
     if (numbered) {
-      const value = Number(numbered[1]);
-      const hasDot = numbered[2] === ".";
-      const rest = numbered[3];
-      // Without a dot ("3 Term"), only a title-like line counts, so that a
-      // wrapped line such as "30 days of receipt" is not taken for a clause.
-      const plausible = hasDot ? rest.trim().length > 0 : looksLikeHeading(rest);
-      if (plausible && follows(lastTop, value) && (lastTop > 0 || value === 1)) {
+      const value = Number(numbered[2]);
+      const style = numberStyle(numbered[1], numbered[3]);
+      const hasMark = numbered[3] !== "";
+      let rest = numbered[4];
+      // "4." alone on a line with the title on the next: a common PDF artefact.
+      const next = lines[i + 1];
+      if (hasMark && !rest.trim() && next && looksLikeHeading(next.text)) {
+        rest = next.text;
+      }
+      // Without a dot or bracket ("3 Term"), only a title-like line counts, so
+      // that a wrapped line such as "30 days of receipt" is not taken for a clause.
+      const plausible = hasMark ? rest.trim().length > 0 : looksLikeHeading(rest);
+      const consistent = style !== null && (topStyle === null || topStyle === style);
+      const sequential =
+        follows(lastTop, value) ||
+        (hasMark && followsAfterGap(lastTop, value) && looksLikeHeading(rest));
+      if (plausible && consistent && sequential && (lastTop > 0 || value === 1)) {
+        topStyle = style;
         const { heading, hasBody } = headingFromRest(rest);
         markers.push({
           kind: "top",
           start: line.start,
-          number: numbered[1],
+          number: numbered[2],
           heading,
           hasBody,
         });
@@ -256,7 +313,20 @@ export function segmentContract(source: string): Segment[] {
   let markers = findMarkers(lines);
   if (!markers.some((marker) => marker.kind === "top")) {
     const headings = findUnnumberedHeadings(lines);
-    if (headings.length >= 3) markers = headings;
+    if (headings.length >= 3) {
+      // Keep the recitals, signature block and schedules found above. Headings
+      // past the signature block belong to a schedule, not to a clause.
+      const parts = markers.filter((marker) => marker.kind === "part");
+      const partStarts = new Set(parts.map((part) => part.start));
+      const bodyEnd =
+        parts.find((part) => part.heading !== "Recitals")?.start ?? Infinity;
+      markers = [
+        ...parts,
+        ...headings.filter(
+          (heading) => heading.start < bodyEnd && !partStarts.has(heading.start),
+        ),
+      ].sort((a, b) => a.start - b.start);
+    }
   }
 
   type Draft = Omit<Segment, "ordinal" | "text" | "endOffset">;
@@ -300,6 +370,10 @@ export function segmentContract(source: string): Segment[] {
       continue;
     }
 
+    if (marker.orphan) {
+      topHeading = null;
+      pendingTop = null;
+    }
     drafts.push({
       number: marker.number,
       heading: topHeading,

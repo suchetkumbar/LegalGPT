@@ -46,3 +46,6 @@ next-env.d.ts
 
 # local upload storage (development only)
 /.data/
+
+# cached model answers from evaluation runs
+/evals/.cache/

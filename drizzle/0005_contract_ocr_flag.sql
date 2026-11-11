@@ -1,0 +1,1 @@
+ALTER TABLE "contracts" ADD COLUMN "ocr_used" boolean DEFAULT false NOT NULL;
