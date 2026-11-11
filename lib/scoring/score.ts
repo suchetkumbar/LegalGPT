@@ -66,6 +66,8 @@ export type ScorableFinding = {
   clauseType: string | null;
   category: string;
   status: "open" | "accepted" | "dismissed";
+  /** Compliance findings are shown for review but do not add to the risk score. */
+  kind?: "risk" | "deviation" | "compliance";
 };
 
 export type RiskScore = {
@@ -94,7 +96,11 @@ export function computeRiskScore(
   findings: ScorableFinding[],
   weights: Partial<Record<string, number>> = DEFAULT_WEIGHTS,
 ): RiskScore {
-  const live = findings.filter((finding) => finding.status !== "dismissed");
+  // Compliance findings restate risks the rules already score (a void
+  // non-compete is both), so counting them too would double the weight.
+  const live = findings.filter(
+    (finding) => finding.status !== "dismissed" && finding.kind !== "compliance",
+  );
   const weightOf = (type: string | null) =>
     (type ? weights[type] : undefined) ?? UNLISTED_WEIGHT;
   const points = (finding: ScorableFinding) =>

@@ -21,6 +21,7 @@ export async function rescoreContract(tx: OrgTx, contractId: string): Promise<Ri
       clauseType: findings.clauseType,
       category: findings.category,
       status: findings.status,
+      kind: findings.kind,
     })
     .from(findings)
     .where(eq(findings.contractId, contractId));

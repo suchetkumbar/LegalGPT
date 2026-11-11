@@ -64,6 +64,13 @@
       "when": 1794397385967,
       "tag": "0008_contract_our_party",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794419295501,
+      "tag": "0009_compliance",
+      "breakpoints": true
     }
   ]
 }

@@ -297,6 +297,72 @@ export const playbookPositions = pgTable(
   ],
 ).enableRLS();
 
+/**
+ * An organisation's own compliance rules (the INTERNAL pack). Built-in packs
+ * live in code (lib/compliance/packs.ts); only org-written ones are stored.
+ */
+export const rulePacks = pgTable(
+  "rule_packs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    version: integer("version").notNull().default(1),
+    rules: jsonb("rules")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("rule_packs_org_code_idx").on(t.orgId, t.code),
+    pgPolicy("rule_packs_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export const complianceVerdict = pgEnum("compliance_verdict", ["pass", "warn", "fail"]);
+
+export const complianceResults = pgTable(
+  "compliance_results",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    packCode: text("pack_code").notNull(),
+    // The pack version the verdict was made with, so old reports stay traceable.
+    packVersion: text("pack_version").notNull(),
+    ruleId: text("rule_id").notNull(),
+    title: text("title").notNull(),
+    reference: text("reference").notNull(),
+    verdict: complianceVerdict("verdict").notNull(),
+    clauseId: uuid("clause_id").references(() => clauses.id, { onDelete: "set null" }),
+    quotedText: text("quoted_text"),
+    explanation: text("explanation").notNull(),
+    fix: text("fix"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("compliance_results_contract_idx").on(t.contractId),
+    pgPolicy("compliance_results_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
 export const findingKind = pgEnum("finding_kind", ["risk", "deviation", "compliance"]);
 export const findingSource = pgEnum("finding_source", ["rule", "model"]);
 export const findingStatus = pgEnum("finding_status", ["open", "accepted", "dismissed"]);
@@ -394,6 +460,8 @@ export type Clause = typeof clauses.$inferSelect;
 export type Entity = typeof entities.$inferSelect;
 export type Playbook = typeof playbooks.$inferSelect;
 export type PlaybookPositionRow = typeof playbookPositions.$inferSelect;
+export type RulePackRow = typeof rulePacks.$inferSelect;
+export type ComplianceResult = typeof complianceResults.$inferSelect;
 export type Finding = typeof findings.$inferSelect;
 export type FindingStatus = (typeof findingStatus.enumValues)[number];
 export type Job = typeof jobs.$inferSelect;

@@ -27,6 +27,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
               >
                 Playbook
               </Link>
+              <Link
+                href="/compliance"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Policies
+              </Link>
             </nav>
             <Suspense fallback={<Skeleton className="h-7 w-40" />}>
               <OrganizationSwitcher

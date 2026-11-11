@@ -88,6 +88,11 @@ Everything else in `.env.example` is optional in development.
   rules run, one reasoning-tier call (`lib/pipeline/assess.ts`) re-scores the rule
   findings in context, reports material deviations from the playbook and writes
   the summary. A deviation is stored only if its quote is found in the clause.
+- **Compliance.** `lib/compliance` checks each contract against versioned rule
+  packs: DPDP Act 2023, Indian Contract Act 1872, Arbitration Act 1996 and stamp
+  duty first, then GDPR Article 28 and CCPA when the contract points to them, plus
+  the organisation's own policies written at `/compliance`. Each rule gives pass,
+  warn or fail, citing the clause and the pack version. Deterministic, no model.
 - **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
   inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
   English only, up to 40 pages. The contract is flagged as read by OCR.

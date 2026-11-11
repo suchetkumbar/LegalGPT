@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { AnalysisProgress } from "@/components/contracts/analysis-progress";
 import { ContractViewer } from "@/components/contracts/contract-viewer";
+import { ComplianceMatrix } from "@/components/contracts/compliance-matrix";
 import { KeyDetails } from "@/components/contracts/key-details";
 import { OurPartySelect } from "@/components/contracts/our-party-select";
 import { RetryAnalysis } from "@/components/contracts/retry-analysis";
@@ -16,6 +17,7 @@ import { canEditContracts, getAuthContext } from "@/lib/auth/context";
 import { isUuid } from "@/lib/contracts/ids";
 import { getContract } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
+import { getComplianceResults } from "@/lib/compliance/store";
 import { getWeights } from "@/lib/playbook/queries";
 
 export const metadata: Metadata = { title: "Contract" };
@@ -43,10 +45,11 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
     ? await withOrg(org.id, async (tx) => ({
         detail: await getContract(tx, id),
         weights: await getWeights(tx),
+        compliance: await getComplianceResults(tx, id),
       }))
     : null;
   if (!loaded?.detail) notFound();
-  const { detail, weights } = loaded;
+  const { detail, weights, compliance } = loaded;
 
   const { contract, clauses, entities, findings, job } = detail;
 
@@ -105,6 +108,7 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
             findings={findings}
             canReview={canEditContracts(user)}
           />
+          <ComplianceMatrix results={compliance} clauses={clauses} />
         </>
       ) : contract.status === "failed" ? (
         <div role="alert" className="border-destructive/40 rounded-lg border px-6 py-10">

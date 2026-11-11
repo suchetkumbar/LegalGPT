@@ -303,3 +303,48 @@ How to read the risk numbers:
 - The plan's score formula rarely exceeds "medium" without a critical finding;
   revisit once there are real scores to look at.
 - A median cost report across contracts.
+
+## Phase 3 — Compliance intelligence (built)
+
+No model calls: compliance is checked deterministically.
+
+| Plan item                                                             | Status                                                                                                                   |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Versioned rule packs as data, with applicability and legal references | Done: DPDP 2023 (8 rules), Indian Contract Act (4), Arbitration Act (2), stamp duty (1), GDPR Art. 28 (7), CCPA/CPRA (3) |
+| Applicability step                                                    | Done, from the clauses, the text and the extracted governing law                                                         |
+| Compliance reasoning with extended thinking, per rule                 | Changed: deterministic checks, see below                                                                                 |
+| Internal policy builder                                               | Built at `/compliance` (admin only) as a form, not plain-English conversion                                              |
+| Compliance tab with a matrix of rules against status                  | Built on the contract page; findings merged into the review list                                                         |
+
+Deviations:
+
+- **No model in compliance.** The plan had the reasoning model judge each rule
+  with extended thinking. To keep within the free quota (owner's instruction:
+  calls minimal), each rule instead checks for required and prohibited wording.
+  This catches a missing breach-notification duty or a void non-compete; it
+  cannot judge whether a clause that is present is good enough.
+- **Policies are written as phrases, not converted from plain English.** An admin
+  picks "must mention" or "must not mention", the phrases, the clause type and
+  whether it fails or warns. No model is needed, so nothing waits on approval.
+- **Compliance findings do not add to the risk score.** They restate risks the
+  rule engine already scores (a void non-compete is both), so counting them twice
+  would double the weight. They do appear in the findings list for review.
+- **Rule packs live in code**, versioned; only organisation-written policies are
+  stored (`rule_packs`). Every verdict stores the pack version it used
+  (`compliance_results`).
+- **DPDP applies only when personal data is processed**, not merely mentioned, so
+  an NDA listing personal data as confidential information is not checked as a
+  processing contract.
+
+### Phase 3 exit criteria
+
+| Criterion                                                | Result                                                             | Status       |
+| -------------------------------------------------------- | ------------------------------------------------------------------ | ------------ |
+| Verdicts at least 85% accurate on a 25-contract gold set | Checked on the three sample contracts in tests; no 25-contract set | Not measured |
+| Every verdict cites the rule pack version used           | Stored on every verdict and shown in the matrix                    | Met          |
+
+### Open items carried forward (Phase 3)
+
+- A 25-contract compliance gold set.
+- Rule packs need review by a lawyer before anyone relies on them; the
+  references were written from the statutes, not checked by counsel.

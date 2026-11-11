@@ -15,7 +15,7 @@ const STAGE_LABELS: Record<string, string> = {
   classify: "Labelling each clause",
   extract: "Picking out parties, dates and amounts",
   embed: "Indexing for search",
-  review: "Checking for known risks",
+  review: "Checking risks and compliance",
   assess: "Comparing against your playbook",
   done: "Done",
 };

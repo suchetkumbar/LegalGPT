@@ -19,6 +19,12 @@ import {
 import * as schema from "@/lib/db/schema";
 import { runAsOrg, type OrgTx } from "@/lib/db/tenant";
 import { runAnalysis } from "@/lib/pipeline/analyze";
+import {
+  addPolicy,
+  getComplianceResults,
+  listPolicies,
+  removePolicy,
+} from "@/lib/compliance/store";
 
 import { EMPTY_EXTRACTION, fakeAi } from "../helpers/fake-ai";
 
@@ -99,7 +105,14 @@ describe("review stage", () => {
     const found = detail!.findings;
 
     expect(found.length).toBeGreaterThanOrEqual(13);
-    expect(found.every((f) => f.kind === "risk" && f.source === "rule")).toBe(true);
+    expect(found.every((f) => f.source === "rule")).toBe(true);
+    expect(found.every((f) => f.kind === "risk" || f.kind === "compliance")).toBe(true);
+    // The void non-compete is also a compliance failure under s. 27.
+    expect(
+      found.some(
+        (f) => f.kind === "compliance" && f.ruleId === "ica.s27-restraint-of-trade",
+      ),
+    ).toBe(true);
     expect(found.every((f) => f.status === "open")).toBe(true);
     // Most serious first.
     expect(found[0]).toMatchObject({
@@ -138,6 +151,7 @@ describe("review stage", () => {
 
     expect(detail!.contract.riskScore).toBeLessThan(30);
     expect(detail!.findings.filter((f) => f.severity >= 4)).toEqual([]);
+    expect(detail!.findings.filter((f) => f.kind === "compliance")).toEqual([]);
   });
 
   it("still produces findings and a score when the model is unavailable", async () => {
@@ -273,6 +287,63 @@ describe("reviewing findings", () => {
     const updated = await set(parties[0]);
     expect(updated).toMatchObject({ ourParty: parties[0], counterparty: parties[1] });
     expect(await set(null)).toMatchObject({ ourParty: null });
+  });
+
+  it("stores compliance verdicts with their pack version, and applies internal policies", async () => {
+    const policy = await runAsOrg(db, orgA, (tx) =>
+      addPolicy(tx, {
+        orgId: orgA,
+        actorId: userA,
+        policy: {
+          title: "No auto-renewal",
+          description: "We do not sign contracts that renew themselves.",
+          mode: "forbid",
+          phrases: ["renew automatically"],
+          clauseType: null,
+          severity: "fail",
+          category: "renewal",
+          fix: "",
+        },
+      }),
+    );
+    expect((await runAsOrg(db, orgA, listPolicies)).version).toBe(1);
+    // Another organisation does not see it.
+    expect((await runAsOrg(db, orgB, listPolicies)).rules).toEqual([]);
+
+    const { contractId } = await analyse(orgA, userA, "services-agreement");
+    const results = await runAsOrg(db, orgA, (tx) =>
+      getComplianceResults(tx, contractId),
+    );
+
+    const byRule = Object.fromEntries(results.map((r) => [r.ruleId, r]));
+    expect(byRule["ica.s27-restraint-of-trade"]).toMatchObject({
+      verdict: "fail",
+      packCode: "ICA",
+      packVersion: "2026.1",
+    });
+    expect(byRule["ica.s27-restraint-of-trade"].clauseId).not.toBeNull();
+    expect(byRule[policy.id]).toMatchObject({
+      verdict: "fail",
+      packCode: "INTERNAL",
+      packVersion: "1",
+    });
+
+    // Compliance findings are listed for review but do not move the score.
+    const detail = await detailOf(orgA, contractId);
+    expect(
+      detail!.findings.some((f) => f.kind === "compliance" && f.ruleId === policy.id),
+    ).toBe(true);
+    expect(detail!.contract.riskScore).toBe(70);
+
+    expect(
+      await runAsOrg(db, orgA, (tx) =>
+        removePolicy(tx, { orgId: orgA, actorId: userA, ruleId: policy.id }),
+      ),
+    ).toBe(true);
+    expect(await runAsOrg(db, orgA, listPolicies)).toMatchObject({
+      version: 2,
+      rules: [],
+    });
   });
 
   it("cannot see or change another org's findings", async () => {

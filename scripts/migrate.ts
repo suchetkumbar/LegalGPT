@@ -18,6 +18,7 @@ config({ path: ".env.local", quiet: true });
 const EXPECTED_TABLES = [
   "audit_log",
   "clauses",
+  "compliance_results",
   "contracts",
   "entities",
   "findings",
@@ -25,6 +26,7 @@ const EXPECTED_TABLES = [
   "orgs",
   "playbook_positions",
   "playbooks",
+  "rule_packs",
   "users",
 ];
 

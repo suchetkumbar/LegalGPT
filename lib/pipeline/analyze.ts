@@ -13,10 +13,12 @@ import type { OcrFunction } from "./ocr";
 import { DocumentError, parseDocument } from "./parse";
 import { segmentContract, type Segment } from "./segment";
 import { runRules } from "@/lib/rules";
+import { loadPacks } from "@/lib/compliance/store";
+import { runCompliance } from "@/lib/compliance/engine";
 import { ensurePlaybook } from "@/lib/playbook/queries";
 import { rescoreContract } from "@/lib/scoring/rescore";
 
-const { contracts, clauses, entities, findings, jobs, orgs } = schema;
+const { contracts, clauses, complianceResults, entities, findings, jobs, orgs } = schema;
 
 /**
  * The `analyze` job: parse → segment → classify → extract → embed → review → assess.
@@ -268,16 +270,75 @@ const STAGES: Record<
       const { contract, text } = await loadText(tx, contractId);
       const rows = await loadClauses(tx, contractId);
 
-      const results = runRules({
+      const ruleClauses = rows.map((row) => ({
+        ordinal: row.ordinal,
+        type: row.type as ClauseType | null,
+        heading: row.heading,
+        text: row.text,
+      }));
+      const ruleResults = runRules({
         text,
         contractType: contract.type,
-        clauses: rows.map((row) => ({
-          ordinal: row.ordinal,
-          type: row.type as ClauseType | null,
-          heading: row.heading,
-          text: row.text,
-        })),
+        clauses: ruleClauses,
       });
+
+      // Compliance: deterministic checks against the rule packs, no model.
+      const [law] = await tx
+        .select({ value: entities.value })
+        .from(entities)
+        .where(and(eq(entities.contractId, contractId), eq(entities.kind, "law")));
+      const packResults = runCompliance(await loadPacks(tx), {
+        clauses: ruleClauses,
+        text,
+        governingLaw: law?.value ?? null,
+      });
+      const verdicts = packResults.flatMap((pack) => pack.verdicts);
+      const clauseIdOf = (ordinal: number | null) =>
+        ordinal === null
+          ? null
+          : (rows.find((row) => row.ordinal === ordinal)?.id ?? null);
+
+      await tx
+        .delete(complianceResults)
+        .where(eq(complianceResults.contractId, contractId));
+      if (verdicts.length > 0) {
+        await tx.insert(complianceResults).values(
+          verdicts.map((verdict) => ({
+            orgId: contract.orgId,
+            contractId,
+            packCode: verdict.packCode,
+            packVersion: verdict.packVersion,
+            ruleId: verdict.ruleId,
+            title: verdict.title,
+            reference: verdict.reference,
+            verdict: verdict.verdict,
+            clauseId: clauseIdOf(verdict.clauseOrdinal),
+            quotedText: verdict.quotedText,
+            explanation: verdict.explanation,
+            fix: verdict.fix,
+          })),
+        );
+      }
+
+      // Failed and flagged rules also join the findings list, for review.
+      const results = [
+        ...ruleResults.map((result) => ({ ...result, kind: "risk" as const })),
+        ...verdicts
+          .filter((verdict) => verdict.verdict !== "pass")
+          .map((verdict) => ({
+            kind: "compliance" as const,
+            ruleId: verdict.ruleId,
+            title: `${verdict.title} (${verdict.reference})`,
+            category: verdict.category,
+            severity: verdict.verdict === "fail" ? 4 : 2,
+            likelihood: 3,
+            clauseType: null,
+            clauseOrdinal: verdict.clauseOrdinal,
+            quotedText: verdict.quotedText,
+            reasoning: `${verdict.explanation} Checked against ${verdict.packCode} ${verdict.packVersion}.`,
+            suggestedFix: verdict.fix ?? "",
+          })),
+      ];
 
       // A re-run must not undo a reviewer's decisions: carry each one over to
       // the same finding (same rule, same quoted words) in the new set.
@@ -303,12 +364,8 @@ const STAGES: Record<
             return {
               orgId: contract.orgId,
               contractId,
-              clauseId:
-                result.clauseOrdinal === null
-                  ? null
-                  : (rows.find((row) => row.ordinal === result.clauseOrdinal)?.id ??
-                    null),
-              kind: "risk" as const,
+              clauseId: clauseIdOf(result.clauseOrdinal),
+              kind: result.kind,
               source: "rule" as const,
               ruleId: result.ruleId,
               title: result.title,
@@ -318,7 +375,7 @@ const STAGES: Record<
               likelihood: result.likelihood,
               quotedText: result.quotedText,
               reasoning: result.reasoning,
-              suggestedFix: result.suggestedFix,
+              suggestedFix: result.suggestedFix || null,
               status: earlier?.status ?? ("open" as const),
               reviewedBy: earlier?.reviewedBy ?? null,
               reviewedAt: earlier?.reviewedAt ?? null,
@@ -348,7 +405,13 @@ const STAGES: Record<
         rules: await tx
           .select()
           .from(findings)
-          .where(and(eq(findings.contractId, contractId), eq(findings.source, "rule")))
+          .where(
+            and(
+              eq(findings.contractId, contractId),
+              eq(findings.source, "rule"),
+              eq(findings.kind, "risk"),
+            ),
+          )
           .orderBy(asc(findings.createdAt), asc(findings.id)),
       };
     });
