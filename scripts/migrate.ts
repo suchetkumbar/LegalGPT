@@ -15,7 +15,15 @@ import { migrate } from "drizzle-orm/neon-serverless/migrator";
 
 config({ path: ".env.local", quiet: true });
 
-const EXPECTED_TABLES = ["audit_log", "orgs", "users"];
+const EXPECTED_TABLES = [
+  "audit_log",
+  "clauses",
+  "contracts",
+  "entities",
+  "jobs",
+  "orgs",
+  "users",
+];
 
 async function main() {
   const url = process.env.DATABASE_URL;

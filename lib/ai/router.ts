@@ -28,9 +28,16 @@ function read(env: Env, key: string, fallback: string): string {
   return env[key]?.trim() || fallback;
 }
 
-/** Ordered model ids to try for a tier. The first entry is the primary model. */
+/**
+ * Ordered model ids to try for a tier. The first entry is the primary model.
+ *
+ * The standard and fast tiers back each other up. On the free tier each model
+ * has its own daily quota, so when one runs out the other usually still has
+ * room, and a finished analysis on the neighbouring model beats a failed one.
+ */
 export function modelChain(tier: ModelTier, env: Env = process.env): string[] {
   const standard = read(env, "MODEL_TIER_STANDARD", DEFAULTS.standard);
+  const fast = read(env, "MODEL_TIER_FAST", DEFAULTS.fast);
   switch (tier) {
     case "reasoning": {
       const chain = [
@@ -41,9 +48,9 @@ export function modelChain(tier: ModelTier, env: Env = process.env): string[] {
       return [...new Set(chain)];
     }
     case "standard":
-      return [standard];
+      return [...new Set([standard, fast])];
     case "fast":
-      return [read(env, "MODEL_TIER_FAST", DEFAULTS.fast)];
+      return [...new Set([fast, standard])];
   }
 }
 

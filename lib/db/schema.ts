@@ -1,7 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
+  bigint,
   index,
+  integer,
   jsonb,
+  numeric,
   pgEnum,
   pgPolicy,
   pgRole,
@@ -10,6 +14,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  vector,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -104,7 +109,179 @@ export const auditLog = pgTable(
   ],
 ).enableRLS();
 
+/**
+ * Embedding width. gemini-embedding-001 can return 768, 1536 or 3072
+ * dimensions; 768 keeps the index small and is within pgvector's HNSW limit.
+ */
+export const EMBEDDING_DIMENSIONS = 768;
+
+export const contractStatus = pgEnum("contract_status", [
+  "uploaded",
+  "processing",
+  "ready",
+  "failed",
+]);
+
+export const contracts = pgTable(
+  "contracts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    // Contract type (NDA, MSA, ...) and counterparty are filled in by extraction.
+    type: text("type"),
+    counterparty: text("counterparty"),
+    status: contractStatus("status").notNull().default("uploaded"),
+    // Storage key of the original file, not a public URL.
+    blobUrl: text("blob_url").notNull(),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    fileHash: text("file_hash").notNull(),
+    // Normalised plain text. Clause offsets index into this string.
+    text: text("text"),
+    pageCount: integer("page_count"),
+    // Earlier version of the same contract, if any.
+    parentId: uuid("parent_id").references((): AnyPgColumn => contracts.id, {
+      onDelete: "set null",
+    }),
+    version: integer("version").notNull().default(1),
+    riskScore: integer("risk_score"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("contracts_org_created_idx").on(t.orgId, t.createdAt),
+    pgPolicy("contracts_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export const clauses = pgTable(
+  "clauses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    // The label as printed in the document, such as "4.2" or "Schedule A".
+    number: text("number"),
+    heading: text("heading"),
+    text: text("text").notNull(),
+    // Clause type, assigned by classification. Null until then.
+    type: text("type"),
+    startOffset: integer("start_offset").notNull(),
+    endOffset: integer("end_offset").notNull(),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
+  },
+  (t) => [
+    uniqueIndex("clauses_contract_ordinal_idx").on(t.contractId, t.ordinal),
+    index("clauses_embedding_idx").using("hnsw", t.embedding.op("vector_cosine_ops")),
+    pgPolicy("clauses_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export const entityKind = pgEnum("entity_kind", [
+  "party",
+  "date",
+  "amount",
+  "law",
+  "jurisdiction",
+  "term",
+]);
+
+export const entities = pgTable(
+  "entities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    // The clause the supporting quote was found in.
+    clauseId: uuid("clause_id").references(() => clauses.id, { onDelete: "set null" }),
+    kind: entityKind("kind").notNull(),
+    // A party's role ("Client"), or a field name such as "effective_date".
+    label: text("label").notNull(),
+    value: text("value").notNull(),
+    // Machine-readable form where one exists: { iso } or { amount, currency }.
+    normalized: jsonb("normalized"),
+  },
+  (t) => [
+    index("entities_contract_idx").on(t.contractId),
+    pgPolicy("entities_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export const jobStatus = pgEnum("job_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+]);
+
+export const jobs = pgTable(
+  "jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    // The pipeline stage currently running, or the one that failed.
+    stage: text("stage").notNull().default("queued"),
+    status: jobStatus("status").notNull().default("queued"),
+    error: text("error"),
+    tokensIn: integer("tokens_in").notNull().default(0),
+    tokensOut: integer("tokens_out").notNull().default(0),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("jobs_contract_created_idx").on(t.contractId, t.createdAt),
+    pgPolicy("jobs_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
 export type Org = typeof orgs.$inferSelect;
+export type Contract = typeof contracts.$inferSelect;
+export type ContractStatus = (typeof contractStatus.enumValues)[number];
+export type Clause = typeof clauses.$inferSelect;
+export type Entity = typeof entities.$inferSelect;
+export type Job = typeof jobs.$inferSelect;
+export type JobStatus = (typeof jobStatus.enumValues)[number];
 export type User = typeof users.$inferSelect;
 export type UserRole = (typeof userRole.enumValues)[number];
 export type AuditLogEntry = typeof auditLog.$inferSelect;

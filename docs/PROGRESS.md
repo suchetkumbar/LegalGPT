@@ -57,7 +57,7 @@ and deviations agreed along the way.
 | CI runs lint, typecheck and tests on every PR                | Workflow written; runs once pushed            |
 | Health check reaches all three model tiers                   | Verified locally on 2026-11-11 (all three ok) |
 
-### Open items carried forward
+### Open items carried forward (Phase 0)
 
 - Google uses free-tier Gemini content to improve its products. Real customer
   contracts must not go through it; moving to a paid tier is a launch blocker
@@ -67,3 +67,67 @@ and deviations agreed along the way.
   self-hosting, or metadata-only tracing.
 - Clerk stores user accounts outside India. Note it in the DPDP subprocessor list
   (Phase 7).
+
+## Phase 1 — Ingestion and the clause engine
+
+Split into three sub-phases, each a commit point.
+
+### 1a — Upload, parsing, rule-based segmentation, viewer (built)
+
+No model calls in this sub-phase.
+
+| Plan item                                      | Status                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------- |
+| Drag-and-drop upload (PDF, .docx, .txt; 20 MB) | Built; not yet tried in a browser                              |
+| Parsing to plain text with character offsets   | Done, tested on all three formats                              |
+| OCR fallback for scanned PDFs                  | Moved to 1c; scans are detected and reported for now           |
+| `analyze` job with stages                      | `parse → segment` run after the upload response; Inngest in 1b |
+| Segmentation: heading and numbering heuristics | Done, tested on three sample Indian contracts                  |
+| Contract viewer with clause outline            | Built; not yet tried in a browser                              |
+| SSE progress bar driven by the `jobs` table    | Built; not yet tried in a browser                              |
+
+Deviations:
+
+- **Uploads go through the server, not straight from the browser to Blob.** The
+  server checks the file's real type from its bytes before anything is stored, and
+  the same code path works locally. Vercel Functions accept bodies this size.
+- **Without a Blob token, development stores files under `.data/`** (git-ignored).
+  Production refuses to start an upload without Vercel Blob.
+- **The viewer shows the extracted text, not the PDF page images.** Clause offsets
+  index into that text, so highlights are exact for every file type.
+- **Clause granularity is two levels** ("4.2"), with the parent heading carried
+  down. Lettered items stay inside their clause.
+- **`clauses.embedding` is 768 wide**, not 1024, to match `gemini-embedding-001`.
+- **Extra columns:** `contracts.text`, `page_count`, `file_name`, `mime_type`,
+  `size_bytes`, `file_hash`; `clauses.number`; `org_id` on `clauses` and `jobs`.
+
+### 1b — Model pass (built, tested against a mocked model only)
+
+| Plan item                                                               | Status                         |
+| ----------------------------------------------------------------------- | ------------------------------ |
+| Inngest `analyze` job, `parse → segment → classify → extract → embed`   | Built; not yet run on Inngest  |
+| Fast model fixes boundaries and assigns one of 30 clause types          | Built; no live Gemini call yet |
+| Entity extraction (parties, effective date, term, value, governing law) | Built; no live Gemini call yet |
+| Embeddings into `clauses.embedding` with an HNSW index                  | Built; no live Gemini call yet |
+
+Deviations:
+
+- **Inngest is optional locally.** With no Inngest settings, the same stages run
+  in the app's process after the response, without retries.
+- **The model points at boundaries with quotes; it never rewrites text.** The
+  server applies a merge or split only if the quoted words are in the clause.
+- **The fast and standard tiers back each other up**, since free quotas are per
+  model. The plan had a fallback chain only for the reasoning tier.
+- **A failed model step leaves the contract readable** with its rule-based
+  clauses, and a "Run analysis again" button (`POST /api/contracts/:id/analyze`).
+- **`entities` has more kinds than the plan** (jurisdiction and term added), plus
+  `label` and `normalized` columns.
+- **Model traces never include contract text** (inputs and outputs are not
+  recorded), which settles the Langfuse open item from Phase 0.
+- **Calls per contract:** one classify call per 60 clauses, one extract call, one
+  embedding call per 100 clauses. A typical contract uses three calls.
+
+### 1c — OCR and evaluation
+
+OCR for scanned PDFs; the 30-contract set for the exit criteria (boundaries ≥ 95%,
+types ≥ 90%, a 20-page contract ingested in under 60 seconds).

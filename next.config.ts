@@ -4,6 +4,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // Uploads pass through proxy.ts, which buffers request bodies. The default
+    // cap is 10 MB; contracts may be up to 20 MB.
+    proxyClientMaxBodySize: "25mb",
+  },
   turbopack: {
     rules: {
       "*.css": {

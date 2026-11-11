@@ -22,6 +22,20 @@
       "when": 1794347170780,
       "tag": "0002_audit_log_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794375284515,
+      "tag": "0003_contracts_clauses_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794376949382,
+      "tag": "0004_entities",
+      "breakpoints": true
     }
   ]
 }

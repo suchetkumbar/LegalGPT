@@ -43,3 +43,6 @@ next-env.d.ts
 
 # clerk local config
 /.clerk/
+
+# local upload storage (development only)
+/.data/

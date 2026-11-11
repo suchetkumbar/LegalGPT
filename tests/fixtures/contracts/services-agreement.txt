@@ -1,0 +1,90 @@
+MASTER SERVICES AGREEMENT
+
+This Master Services Agreement is entered into on 15 January 2026 between Narmada Retail Private Limited, a company incorporated under the Companies Act, 2013 with its registered office at Plot 7, Bandra Kurla Complex, Mumbai 400051 ("Client") and Tungabhadra Software Solutions Private Limited, a company incorporated under the Companies Act, 2013 with its registered office at 4th Floor, HITEC City, Hyderabad 500081 ("Service Provider").
+
+RECITALS
+
+A. The Client operates a chain of retail stores across India.
+B. The Service Provider is in the business of developing and maintaining software.
+C. The Client wishes to engage the Service Provider on the terms of this Agreement.
+
+1 Scope of Services
+
+1.1 The Service Provider shall provide the services described in each statement of work signed by both parties ("Services").
+
+1.2 In the event of a conflict between this Agreement and a statement of work, this Agreement shall prevail unless the statement of work expressly states otherwise.
+
+2 Fees and Payment
+
+2.1 The Client shall pay the fees set out in Schedule A. The total fees under the first statement of work are INR 48,00,000 (Rupees Forty-Eight Lakh only), exclusive of taxes.
+
+2.2 The Service Provider shall raise invoices monthly in arrears. The Client shall pay each undisputed invoice within 90 days of receipt.
+
+2.3 All fees are exclusive of Goods and Services Tax, which shall be charged at the applicable rate. The Client may deduct tax at source as required under the Income-tax Act, 1961 and shall furnish TDS certificates within the statutory period.
+
+2.4 Interest on overdue amounts shall accrue at 18% per annum.
+
+3 Term
+
+This Agreement commences on the date first written above and continues for an initial term of 3 years. It shall renew automatically for successive periods of 1 year unless either party gives written notice of non-renewal at least 120 days before the end of the then-current term.
+
+4 Intellectual Property
+
+4.1 All intellectual property rights in the deliverables shall vest in the Service Provider. The Client is granted a non-exclusive, non-transferable licence to use the deliverables for its internal business purposes.
+
+4.2 Each party retains all rights in its pre-existing materials.
+
+5 Data Protection
+
+5.1 The Service Provider shall process personal data only on the documented instructions of the Client and in compliance with the Digital Personal Data Protection Act, 2023.
+
+5.2 The Service Provider shall implement reasonable security safeguards to prevent a personal data breach and shall notify the Client of any breach without undue delay.
+
+6 Limitation of Liability
+
+6.1 The total liability of the Service Provider under this Agreement shall not exceed the fees paid by the Client in the 3 months preceding the claim.
+
+6.2 Neither party shall be liable for any indirect or consequential loss.
+
+6.3 The Client shall indemnify the Service Provider against all claims, losses and expenses arising out of the Client's use of the deliverables, without limit.
+
+7 Termination
+
+7.1 The Service Provider may terminate this Agreement for convenience by giving 30 days written notice.
+
+7.2 The Client may terminate this Agreement only for material breach by the Service Provider that remains uncured for 90 days after written notice.
+
+8 Non-Solicitation and Non-Compete
+
+8.1 During the term and for 12 months thereafter, neither party shall solicit the employees of the other.
+
+8.2 For a period of 2 years after termination, the Client shall not engage any other vendor to provide services similar to the Services.
+
+9 Governing Law and Jurisdiction
+
+This Agreement shall be governed by the laws of India. The courts at Hyderabad shall have exclusive jurisdiction over any dispute arising out of this Agreement.
+
+10 Notices
+
+Any notice under this Agreement shall be in writing and delivered by registered post or email to the addresses set out above.
+
+IN WITNESS WHEREOF the parties have signed this Agreement through their authorised signatories.
+
+Signed for and on behalf of Narmada Retail Private Limited
+Name: Meera Deshpande
+Title: Chief Operating Officer
+
+Signed for and on behalf of Tungabhadra Software Solutions Private Limited
+Name: Rohit Reddy
+Title: Managing Director
+
+SCHEDULE A - FEES
+
+1. Monthly retainer: INR 4,00,000.
+2. Additional development: INR 2,500 per person-hour.
+3. Travel outside Hyderabad shall be reimbursed at actuals.
+
+SCHEDULE B - SERVICE LEVELS
+
+1. Critical incidents shall be acknowledged within 1 hour.
+2. Monthly uptime of the hosted application shall be at least 99.5%.

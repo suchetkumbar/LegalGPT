@@ -34,8 +34,14 @@ describe("modelChain", () => {
       "gemini-3.8-flash",
       "gemini-3.6-flash",
     ]);
-    expect(modelChain("standard", env)).toEqual(["gemini-3.6-flash"]);
-    expect(modelChain("fast", env)).toEqual(["gemini-3.5-flash-lite"]);
+    expect(modelChain("standard", env)).toEqual([
+      "gemini-3.6-flash",
+      "gemini-3.5-flash-lite",
+    ]);
+    expect(modelChain("fast", env)).toEqual([
+      "gemini-3.5-flash-lite",
+      "gemini-3.6-flash",
+    ]);
   });
 
   it("reads each tier from the environment", () => {
@@ -46,7 +52,7 @@ describe("modelChain", () => {
       MODEL_TIER_FAST: "f",
     };
     expect(modelChain("reasoning", custom)).toEqual(["r", "rf", "s"]);
-    expect(modelChain("fast", custom)).toEqual(["f"]);
+    expect(modelChain("fast", custom)).toEqual(["f", "s"]);
   });
 
   it("ignores blank values and removes duplicate models", () => {
@@ -172,14 +178,15 @@ describe("runWithFallback", () => {
     expect(routed.usedFallback).toBe(true);
   });
 
-  it("has no fallback for the fast tier", async () => {
-    const call = vi.fn(async () => {
-      throw apiError(500);
+  it("lets the fast and standard tiers back each other up", async () => {
+    const call = vi.fn(async (modelId: string) => {
+      if (modelId === "fast") throw apiError(429);
+      return modelId;
     });
 
-    await expect(runWithFallback("fast", call, { env: chainEnv })).rejects.toBeInstanceOf(
-      AllModelsFailedError,
-    );
-    expect(call).toHaveBeenCalledTimes(1);
+    const routed = await runWithFallback("fast", call, { env: chainEnv });
+
+    expect(routed).toMatchObject({ modelId: "tertiary", usedFallback: true });
+    expect(call).toHaveBeenCalledTimes(2);
   });
 });

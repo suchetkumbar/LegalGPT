@@ -64,6 +64,20 @@ Everything else in `.env.example` is optional in development.
   `lib/auth/context.ts` returns the current org and user as database rows, creating
   them from Clerk on first sight. `POST /api/webhooks/clerk` keeps them in step
   afterwards.
+- **Ingestion.** `POST /api/contracts` checks the upload's real type from its
+  bytes, stores the original privately (Vercel Blob, or `.data/` in development)
+  and runs the `analyze` job: `lib/pipeline/parse.ts` extracts normalised text,
+  and `lib/pipeline/segment.ts` splits it into clauses by numbering and headings.
+  Three model steps follow: `classify.ts` assigns each clause one of 30 types and
+  repairs boundaries, `extract.ts` pulls out parties, dates, value and governing
+  law, and the clauses are embedded for search. Every extracted fact must quote
+  the contract, and the server drops any whose quote is not in the text.
+  Sample contracts for trying it out are in `tests/fixtures/contracts/`.
+- **Background jobs.** With Inngest configured, the stages run as retryable
+  steps (`inngest/functions/analyze.ts`). Without it, they run in the app's own
+  process after the upload response. If a model step fails, for example because
+  the free quota ran out, the contract stays readable with its rule-based
+  clauses and offers "Run analysis again".
 - **Observability.** Sentry is configured to collect no request bodies, cookies,
   headers or model inputs/outputs, because contracts are confidential. Each
   integration is skipped when its env vars are unset.

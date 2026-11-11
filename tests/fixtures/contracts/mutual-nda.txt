@@ -1,0 +1,91 @@
+MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Mutual Non-Disclosure Agreement ("Agreement") is made at Bengaluru on this 3rd day of June 2026 ("Effective Date")
+
+BY AND BETWEEN
+
+Saraswati Analytics Private Limited, a company incorporated under the Companies Act, 2013, having its registered office at 14, 2nd Cross, Indiranagar, Bengaluru 560038, Karnataka (hereinafter referred to as "Saraswati"), of the First Part;
+
+AND
+
+Kaveri Logistics LLP, a limited liability partnership registered under the Limited Liability Partnership Act, 2008, having its registered office at 221, Anna Salai, Chennai 600002, Tamil Nadu (hereinafter referred to as "Kaveri"), of the Second Part.
+
+Saraswati and Kaveri are hereinafter individually referred to as a "Party" and collectively as the "Parties".
+
+WHEREAS the Parties wish to explore a potential business relationship concerning the supply of route-optimisation software (the "Purpose");
+
+AND WHEREAS in the course of such discussions each Party may disclose to the other certain confidential and proprietary information;
+
+NOW, THEREFORE, in consideration of the mutual covenants set out herein, the Parties agree as follows:
+
+1. DEFINITIONS
+
+1.1 "Confidential Information" means all information, whether written, oral, electronic or in any other form, disclosed by one Party (the "Disclosing Party") to the other Party (the "Receiving Party") that is marked as confidential or that a reasonable person would understand to be confidential, including:
+(a) business plans, pricing, customer lists and financial information;
+(b) source code, algorithms, designs and technical data; and
+(c) personal data of employees or customers.
+
+1.2 "Affiliate" means any entity that directly or indirectly controls, is controlled by, or is under common control with a Party.
+
+2. OBLIGATIONS OF THE RECEIVING PARTY
+
+2.1 The Receiving Party shall hold the Confidential Information in strict confidence and shall use it solely for the Purpose.
+
+2.2 The Receiving Party shall not disclose the Confidential Information to any third party other than its employees, directors and professional advisers who need to know it for the Purpose and who are bound by obligations of confidentiality no less protective than those in this Agreement.
+
+2.3 The Receiving Party shall protect the Confidential Information with at least the same degree of care it uses for its own confidential information, and in no event less than reasonable care.
+
+3. EXCLUSIONS
+
+The obligations in Clause 2 shall not apply to information that the Receiving Party can show:
+(a) is or becomes publicly available other than through a breach of this Agreement;
+(b) was lawfully known to the Receiving Party before disclosure;
+(c) is independently developed by the Receiving Party without use of the Confidential Information; or
+(d) is required to be disclosed by law or by an order of a court of competent jurisdiction, provided that the Receiving Party gives the Disclosing Party prompt written notice where legally permitted.
+
+4. TERM AND TERMINATION
+
+4.1 This Agreement shall commence on the Effective Date and shall remain in force for a period of 2 (two) years.
+
+4.2 Either Party may terminate this Agreement by giving
+30 days written notice to the other Party.
+
+4.3 The obligations of confidentiality shall survive termination of this Agreement for a period of 3 (three) years.
+
+5. RETURN OF INFORMATION
+
+Upon written request, the Receiving Party shall promptly return or destroy all Confidential Information and shall certify such destruction in writing within 15 days.
+
+6. NO LICENCE
+
+Nothing in this Agreement grants the Receiving Party any right, title or licence in or to any intellectual property of the Disclosing Party.
+
+7. REMEDIES
+
+The Parties acknowledge that damages alone may not be an adequate remedy for a breach of this Agreement and that the Disclosing Party shall be entitled to seek injunctive relief under the Specific Relief Act, 1963.
+
+8. GOVERNING LAW AND DISPUTE RESOLUTION
+
+8.1 This Agreement shall be governed by and construed in accordance with the laws of India.
+
+8.2 Any dispute arising out of or in connection with this Agreement shall be referred to arbitration by a sole arbitrator in accordance with the Arbitration and Conciliation Act, 1996. The seat and venue of arbitration shall be Bengaluru and the language shall be English.
+
+8.3 Subject to Clause 8.2, the courts at Bengaluru shall have exclusive jurisdiction.
+
+9. GENERAL
+
+9.1 This Agreement constitutes the entire agreement between the Parties in relation to its subject matter.
+
+9.2 No amendment to this Agreement shall be effective unless made in writing and signed by both Parties.
+
+9.3 This Agreement shall be stamped in accordance with the Karnataka Stamp Act, 1957, and the stamp duty shall be borne equally by the Parties.
+
+IN WITNESS WHEREOF the Parties have executed this Agreement on the date first written above.
+
+For Saraswati Analytics Private Limited
+Name: Ananya Rao
+Designation: Director
+
+For Kaveri Logistics LLP
+Name: Karthik Subramanian
+Designation: Designated Partner
