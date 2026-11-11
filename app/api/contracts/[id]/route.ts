@@ -21,7 +21,13 @@ export async function GET(
   // The storage key and file hash are internal and stay on the server.
   const contract = { ...detail.contract, blobUrl: undefined, fileHash: undefined };
   return Response.json(
-    { contract, clauses: detail.clauses, entities: detail.entities, job: detail.job },
+    {
+      contract,
+      clauses: detail.clauses,
+      entities: detail.entities,
+      findings: detail.findings,
+      job: detail.job,
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

@@ -4,7 +4,9 @@ import {
   ANALYZE_STAGES,
   completeAnalysis,
   failAnalysis,
+  isModelStage,
   runStage,
+  type AnalyzeStage,
 } from "@/lib/pipeline/analyze";
 import { analysisDeps } from "@/lib/pipeline/deps";
 import { DocumentError } from "@/lib/pipeline/parse";
@@ -32,8 +34,13 @@ export const analyzeContract = inngest.createFunction(
     const { orgId, contractId, jobId } = event.data as AnalyzeRequested;
     const ids = { contractId, jobId };
 
+    // If a model stage fails for good, skip the other model stages but still
+    // run the ones that need no model, so the contract gets its rule findings.
+    let failedModelStage: AnalyzeStage | null = null;
+
     for (const stage of ANALYZE_STAGES) {
-      await step.run(stage, async () => {
+      if (failedModelStage && isModelStage(stage)) continue;
+      const run = step.run(stage, async () => {
         const deps = analysisDeps(orgId);
         try {
           await runStage(deps, ids, stage);
@@ -47,6 +54,29 @@ export const analyzeContract = inngest.createFunction(
           throw error;
         }
       });
+      if (!isModelStage(stage)) {
+        await run;
+        continue;
+      }
+      try {
+        await run;
+      } catch {
+        // Retries are used up. The provider's error is in the run's own log.
+        failedModelStage = stage;
+      }
+    }
+
+    if (failedModelStage) {
+      const stage = failedModelStage;
+      await step.run("record-model-failure", () =>
+        failAnalysis(
+          analysisDeps(orgId),
+          ids,
+          new Error(`model stage "${stage}" failed`),
+          stage,
+        ),
+      );
+      return { contractId, incomplete: stage };
     }
 
     await step.run("complete", () => completeAnalysis(analysisDeps(orgId), ids));

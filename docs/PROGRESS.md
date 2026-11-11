@@ -179,3 +179,58 @@ suspected, not confirmed.
   the build is told to include (`next.config.ts`), which only a deploy can prove.
 - Add real, hand-labelled Indian contracts to the evaluation set.
 - Hindi OCR needs the Hindi language data package.
+
+## Phase 2 — Risk detection, scoring and clause analysis
+
+Split into three sub-phases, each a commit point.
+
+### 2a — Rule engine, findings, score, findings panel (built)
+
+No model calls in this sub-phase.
+
+| Plan item                                                               | Status                                                                                             |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Rule engine with 60+ deterministic detectors                            | Done: 83 detectors in 8 categories, each tested against its own examples                           |
+| Scoring service using the plan's formula                                | Done, with the per-category breakdown                                                              |
+| Category breakdown radar chart                                          | Shown as bars for now; the radar chart is in 2c                                                    |
+| Findings panel: filter by severity, accept or dismiss, show in document | Built; not yet tried in a browser                                                                  |
+| Default playbook, playbook editor                                       | 2b. Scoring uses built-in default weights until then                                               |
+| Deviation analysis, risk judgment, executive summary                    | 2b                                                                                                 |
+| Server-side quote check                                                 | Rule findings quote the clause by construction; the check for model findings comes with them in 2b |
+
+Deviations:
+
+- **Eight risk categories, not six.** The plan's six, plus "restrictions"
+  (non-compete and exclusivity, which section 27 of the Contract Act treats
+  specially) and "disputes" (governing law, seat, arbitrator appointment).
+- **A finding that something is missing cites no clause.** "No limitation of
+  liability clause" has nothing to quote. These have a null clause and quote, and
+  the UI says so. Every other finding quotes its clause verbatim.
+- **Rules are neutral about which side the organisation is on.** They flag
+  one-sided terms without knowing whom they favour. The model pass in 2b, and a
+  setting for "which party are we", will refine severity.
+- **The review stage runs even if the model stages fail**, so a contract always
+  gets its rule findings and score. Clauses the model could not type fall back to
+  a type guessed from the heading.
+- **A reviewer's accept or dismiss survives re-analysis**, matched by rule and
+  quoted text.
+- **Extra columns on `findings`:** `org_id`, `source`, `rule_id`, `title`,
+  `clause_type`, `used_fallback`, `reviewed_by`, `reviewed_at`.
+
+Observation on the score: with the plan's formula the denominator is the weight
+of all 20 playbook clause types, so findings alone rarely push a contract past
+"medium". The sample services agreement, written to be bad, reaches 70 only
+because of the critical-finding floor. Worth revisiting once there is a labelled
+set to tune against (2c).
+
+### 2b — Playbook and model pass (next)
+
+Playbook tables, default playbook for 20 clause types, playbook editor; Gemini
+deviation analysis and risk judgment on the reasoning tier, with the quote check;
+executive summary. Uses the Gemini key, so each live test needs the owner's
+go-ahead.
+
+### 2c — Evaluation and polish
+
+Risk evaluation set (recall and precision on high-severity findings), radar
+chart, cost per contract.

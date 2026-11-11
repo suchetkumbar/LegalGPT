@@ -239,6 +239,57 @@ export const entities = pgTable(
   ],
 ).enableRLS();
 
+export const findingKind = pgEnum("finding_kind", ["risk", "deviation", "compliance"]);
+export const findingSource = pgEnum("finding_source", ["rule", "model"]);
+export const findingStatus = pgEnum("finding_status", ["open", "accepted", "dismissed"]);
+
+export const findings = pgTable(
+  "findings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    // The clause the quote is in. Null when the finding is that something is
+    // missing from the contract, or while clauses are being rebuilt.
+    clauseId: uuid("clause_id").references(() => clauses.id, { onDelete: "set null" }),
+    kind: findingKind("kind").notNull(),
+    source: findingSource("source").notNull(),
+    // The detector that produced it, for rule findings.
+    ruleId: text("rule_id"),
+    title: text("title").notNull(),
+    category: text("category").notNull(),
+    // The clause type used to weight the finding in the risk score.
+    clauseType: text("clause_type"),
+    severity: integer("severity").notNull(),
+    likelihood: integer("likelihood").notNull(),
+    // Verbatim from the contract. Null only for a "missing clause" finding.
+    quotedText: text("quoted_text"),
+    reasoning: text("reasoning").notNull(),
+    suggestedFix: text("suggested_fix"),
+    // The model that produced or judged it, and whether that was a fallback model.
+    model: text("model"),
+    usedFallback: boolean("used_fallback").notNull().default(false),
+    status: findingStatus("status").notNull().default("open"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("findings_contract_idx").on(t.contractId),
+    pgPolicy("findings_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
 export const jobStatus = pgEnum("job_status", [
   "queued",
   "running",
@@ -283,6 +334,8 @@ export type Contract = typeof contracts.$inferSelect;
 export type ContractStatus = (typeof contractStatus.enumValues)[number];
 export type Clause = typeof clauses.$inferSelect;
 export type Entity = typeof entities.$inferSelect;
+export type Finding = typeof findings.$inferSelect;
+export type FindingStatus = (typeof findingStatus.enumValues)[number];
 export type Job = typeof jobs.$inferSelect;
 export type JobStatus = (typeof jobStatus.enumValues)[number];
 export type User = typeof users.$inferSelect;

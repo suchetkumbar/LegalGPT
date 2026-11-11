@@ -43,6 +43,13 @@
       "when": 1794379516213,
       "tag": "0005_contract_ocr_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794382063145,
+      "tag": "0006_findings",
+      "breakpoints": true
     }
   ]
 }

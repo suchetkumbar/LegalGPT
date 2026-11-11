@@ -1,20 +1,23 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import * as schema from "@/lib/db/schema";
 import type { OrgTx } from "@/lib/db/tenant";
 
 import type { PipelineAi, TokenUsage } from "./ai";
+import type { ClauseType } from "./clause-types";
 import { classifySegments } from "./classify";
 import { extractEntities, pickCounterparty } from "./extract";
 import { detectFileKind } from "./file-type";
 import type { OcrFunction } from "./ocr";
 import { DocumentError, parseDocument } from "./parse";
 import { segmentContract, type Segment } from "./segment";
+import { runRules } from "@/lib/rules";
+import { rescoreContract } from "@/lib/scoring/rescore";
 
-const { contracts, clauses, entities, jobs, orgs } = schema;
+const { contracts, clauses, entities, findings, jobs, orgs } = schema;
 
 /**
- * The `analyze` job: parse → segment → classify → extract → embed.
+ * The `analyze` job: parse → segment → classify → extract → embed → review.
  *
  * Each stage reads what it needs from the database and writes its own output,
  * so stages can be retried one at a time and nothing confidential has to be
@@ -27,6 +30,7 @@ export const ANALYZE_STAGES = [
   "classify",
   "extract",
   "embed",
+  "review",
 ] as const;
 export type AnalyzeStage = (typeof ANALYZE_STAGES)[number];
 
@@ -246,6 +250,78 @@ const STAGES: Record<
       await addUsage(tx, jobId, result.usage);
     });
   },
+
+  /**
+   * The rule engine and the risk score. Needs no model, so it runs even when
+   * the model stages could not: a contract always gets its rule findings.
+   */
+  async review({ scope }, { contractId }) {
+    await scope(async (tx) => {
+      const { contract, text } = await loadText(tx, contractId);
+      const rows = await loadClauses(tx, contractId);
+
+      const results = runRules({
+        text,
+        contractType: contract.type,
+        clauses: rows.map((row) => ({
+          ordinal: row.ordinal,
+          type: row.type as ClauseType | null,
+          heading: row.heading,
+          text: row.text,
+        })),
+      });
+
+      // A re-run must not undo a reviewer's decisions: carry each one over to
+      // the same finding (same rule, same quoted words) in the new set.
+      const previous = await tx
+        .select()
+        .from(findings)
+        .where(and(eq(findings.contractId, contractId), eq(findings.source, "rule")));
+      const key = (ruleId: string | null, quote: string | null) =>
+        `${ruleId}|${quote ?? ""}`;
+      const decided = new Map(
+        previous
+          .filter((finding) => finding.status !== "open")
+          .map((finding) => [key(finding.ruleId, finding.quotedText), finding]),
+      );
+
+      await tx
+        .delete(findings)
+        .where(and(eq(findings.contractId, contractId), eq(findings.source, "rule")));
+      if (results.length > 0) {
+        await tx.insert(findings).values(
+          results.map((result) => {
+            const earlier = decided.get(key(result.ruleId, result.quotedText));
+            return {
+              orgId: contract.orgId,
+              contractId,
+              clauseId:
+                result.clauseOrdinal === null
+                  ? null
+                  : (rows.find((row) => row.ordinal === result.clauseOrdinal)?.id ??
+                    null),
+              kind: "risk" as const,
+              source: "rule" as const,
+              ruleId: result.ruleId,
+              title: result.title,
+              category: result.category,
+              clauseType: result.clauseType,
+              severity: result.severity,
+              likelihood: result.likelihood,
+              quotedText: result.quotedText,
+              reasoning: result.reasoning,
+              suggestedFix: result.suggestedFix,
+              status: earlier?.status ?? ("open" as const),
+              reviewedBy: earlier?.reviewedBy ?? null,
+              reviewedAt: earlier?.reviewedAt ?? null,
+            };
+          }),
+        );
+      }
+
+      await rescoreContract(tx, contractId);
+    });
+  },
 };
 
 /** Runs one stage, recording it on the job first so progress and failures name it. */
@@ -288,15 +364,19 @@ export async function failAnalysis(
   deps: AnalysisDeps,
   ids: AnalysisIds,
   error: unknown,
+  /** The stage that failed, when later stages have run since. */
+  failedStage?: AnalyzeStage,
 ): Promise<{ stage: string; error: string }> {
-  let stage = "parse";
+  let stage: string = failedStage ?? "parse";
   let message = GENERIC_FAILURE;
   try {
     await deps.scope(async (tx) => {
       const [job] = await tx.select().from(jobs).where(eq(jobs.id, ids.jobId));
       if (!job) return;
       // "ocr" is a label within the parse stage, not a stage of its own.
-      stage = job.stage === "queued" || job.stage === "ocr" ? "parse" : job.stage;
+      if (!failedStage) {
+        stage = job.stage === "queued" || job.stage === "ocr" ? "parse" : job.stage;
+      }
       // Already recorded (the job runner reports a failure twice): keep the first message.
       if (job.status === "failed") {
         message = job.error ?? message;
@@ -334,13 +414,39 @@ export async function failAnalysis(
   return { stage, error: message };
 }
 
-/** Runs every stage in order, in this process. */
+export function isModelStage(stage: string): boolean {
+  return MODEL_STAGES.has(stage);
+}
+
+/**
+ * Runs every stage in order, in this process. If a model stage fails, the
+ * remaining model stages are skipped but the stages that need no model still
+ * run, so the contract ends up with its rule findings and score.
+ */
 export async function runAnalysis(
   deps: AnalysisDeps,
   ids: AnalysisIds,
 ): Promise<AnalysisResult> {
+  let modelFailure: { stage: AnalyzeStage; error: unknown } | null = null;
   try {
-    for (const stage of ANALYZE_STAGES) await runStage(deps, ids, stage);
+    for (const stage of ANALYZE_STAGES) {
+      if (modelFailure && isModelStage(stage)) continue;
+      try {
+        await runStage(deps, ids, stage);
+      } catch (error) {
+        if (!isModelStage(stage)) throw error;
+        modelFailure = { stage, error };
+      }
+    }
+    if (modelFailure) {
+      const failure = await failAnalysis(
+        deps,
+        ids,
+        modelFailure.error,
+        modelFailure.stage,
+      );
+      return { ok: false, ...failure };
+    }
     await completeAnalysis(deps, ids);
     return { ok: true };
   } catch (error) {

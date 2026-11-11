@@ -20,6 +20,7 @@ const EXPECTED_TABLES = [
   "clauses",
   "contracts",
   "entities",
+  "findings",
   "jobs",
   "orgs",
   "users",

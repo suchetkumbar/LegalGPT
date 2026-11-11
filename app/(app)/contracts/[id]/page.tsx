@@ -8,6 +8,7 @@ import { AnalysisProgress } from "@/components/contracts/analysis-progress";
 import { ContractViewer } from "@/components/contracts/contract-viewer";
 import { KeyDetails } from "@/components/contracts/key-details";
 import { RetryAnalysis } from "@/components/contracts/retry-analysis";
+import { RiskSummary } from "@/components/contracts/risk-summary";
 import { StatusBadge } from "@/components/contracts/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { canEditContracts, getAuthContext } from "@/lib/auth/context";
@@ -39,7 +40,7 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
   const detail = isUuid(id) ? await withOrg(org.id, (tx) => getContract(tx, id)) : null;
   if (!detail) notFound();
 
-  const { contract, clauses, entities, job } = detail;
+  const { contract, clauses, entities, findings, job } = detail;
 
   return (
     <>
@@ -74,7 +75,13 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
             </p>
           )}
           <KeyDetails contractType={contract.type} entities={entities} />
-          <ContractViewer text={contract.text} clauses={clauses} />
+          <RiskSummary findings={findings} />
+          <ContractViewer
+            text={contract.text}
+            clauses={clauses}
+            findings={findings}
+            canReview={canEditContracts(user)}
+          />
         </>
       ) : contract.status === "failed" ? (
         <div role="alert" className="border-destructive/40 rounded-lg border px-6 py-10">

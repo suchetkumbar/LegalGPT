@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import type { ContractListItem } from "@/lib/contracts/queries";
 
+import { RiskScoreBadge } from "./risk-summary";
 import { StatusBadge } from "./status-badge";
 
 const dateFormat = new Intl.DateTimeFormat("en-IN", {
@@ -42,6 +43,7 @@ export function ContractList({ contracts }: { contracts: ContractListItem[] }) {
           <TableRow>
             <TableHead>Contract</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead className="text-right">Risk</TableHead>
             <TableHead className="text-right">Clauses</TableHead>
             <TableHead className="text-right">Uploaded</TableHead>
           </TableRow>
@@ -60,6 +62,11 @@ export function ContractList({ contracts }: { contracts: ContractListItem[] }) {
               </TableCell>
               <TableCell>
                 <StatusBadge status={contract.status} />
+              </TableCell>
+              <TableCell className="text-right">
+                <RiskScoreBadge
+                  score={contract.status === "ready" ? contract.riskScore : null}
+                />
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {contract.status === "ready" ? contract.clauseCount : "–"}

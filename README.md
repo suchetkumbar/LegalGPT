@@ -75,6 +75,12 @@ Everything else in `.env.example` is optional in development.
   law, and the clauses are embedded for search. Every extracted fact must quote
   the contract, and the server drops any whose quote is not in the text.
   Sample contracts for trying it out are in `tests/fixtures/contracts/`.
+- **Risk review.** `lib/rules` holds 83 deterministic detectors for known risk
+  patterns, grouped by category and written for Indian law (section 27 and 74 of
+  the Contract Act, the DPDP Act, the MSMED Act, the Stamp Act and so on). Each
+  carries its own examples, which the tests run. Findings are stored per contract
+  and scored by `lib/scoring/score.ts` using the formula in the plan. A reviewer
+  can accept or dismiss each one; a dismissed finding leaves the score.
 - **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
   inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
   English only, up to 40 pages. The contract is flagged as read by OCR.

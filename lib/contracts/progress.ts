@@ -15,6 +15,7 @@ const STAGE_LABELS: Record<string, string> = {
   classify: "Labelling each clause",
   extract: "Picking out parties, dates and amounts",
   embed: "Indexing for search",
+  review: "Checking for known risks",
   done: "Done",
 };
 
@@ -25,7 +26,8 @@ const STAGE_PERCENT: Record<string, number> = {
   segment: 30,
   classify: 50,
   extract: 70,
-  embed: 88,
+  embed: 85,
+  review: 94,
   done: 100,
 };
 

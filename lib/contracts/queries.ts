@@ -1,10 +1,18 @@
-import { asc, count, desc, eq } from "drizzle-orm";
+import { asc, count, desc, eq, sql } from "drizzle-orm";
 
 import * as schema from "@/lib/db/schema";
-import type { Clause, Contract, Entity, Job } from "@/lib/db/schema";
+import type {
+  Clause,
+  Contract,
+  Entity,
+  Finding,
+  FindingStatus,
+  Job,
+} from "@/lib/db/schema";
 import type { OrgTx } from "@/lib/db/tenant";
+import { rescoreContract } from "@/lib/scoring/rescore";
 
-const { contracts, clauses, entities, jobs, auditLog } = schema;
+const { contracts, clauses, entities, findings, jobs, auditLog } = schema;
 
 /**
  * All contract reads and writes. Every function takes a tenant-scoped
@@ -62,7 +70,7 @@ export async function createContract(
 
 export type ContractListItem = Pick<
   Contract,
-  "id" | "title" | "status" | "fileName" | "pageCount" | "createdAt"
+  "id" | "title" | "status" | "fileName" | "pageCount" | "createdAt" | "riskScore"
 > & { clauseCount: number };
 
 export async function listContracts(tx: OrgTx): Promise<ContractListItem[]> {
@@ -74,6 +82,7 @@ export async function listContracts(tx: OrgTx): Promise<ContractListItem[]> {
       fileName: contracts.fileName,
       pageCount: contracts.pageCount,
       createdAt: contracts.createdAt,
+      riskScore: contracts.riskScore,
       clauseCount: count(clauses.id),
     })
     .from(contracts)
@@ -93,10 +102,32 @@ export type EntitySummary = Pick<
   "id" | "kind" | "label" | "value" | "normalized" | "clauseId"
 >;
 
+export type FindingSummary = Pick<
+  Finding,
+  | "id"
+  | "clauseId"
+  | "kind"
+  | "source"
+  | "ruleId"
+  | "title"
+  | "category"
+  | "clauseType"
+  | "severity"
+  | "likelihood"
+  | "quotedText"
+  | "reasoning"
+  | "suggestedFix"
+  | "model"
+  | "usedFallback"
+  | "status"
+>;
+
 export type ContractDetail = {
   contract: Contract;
   clauses: ClauseOutline[];
   entities: EntitySummary[];
+  /** Most serious first. */
+  findings: FindingSummary[];
   job: Job | null;
 };
 
@@ -130,10 +161,38 @@ export async function getContract(tx: OrgTx, id: string): Promise<ContractDetail
     .from(entities)
     .where(eq(entities.contractId, id));
 
+  const risks = await tx
+    .select({
+      id: findings.id,
+      clauseId: findings.clauseId,
+      kind: findings.kind,
+      source: findings.source,
+      ruleId: findings.ruleId,
+      title: findings.title,
+      category: findings.category,
+      clauseType: findings.clauseType,
+      severity: findings.severity,
+      likelihood: findings.likelihood,
+      quotedText: findings.quotedText,
+      reasoning: findings.reasoning,
+      suggestedFix: findings.suggestedFix,
+      model: findings.model,
+      usedFallback: findings.usedFallback,
+      status: findings.status,
+    })
+    .from(findings)
+    .where(eq(findings.contractId, id))
+    .orderBy(
+      desc(sql`${findings.severity} * ${findings.likelihood}`),
+      desc(findings.severity),
+      asc(findings.title),
+    );
+
   return {
     contract,
     clauses: outline,
     entities: found,
+    findings: risks,
     job: await getLatestJob(tx, id),
   };
 }
@@ -184,4 +243,48 @@ export async function createAnalysisJob(
     target: `contract:${contract.id}`,
   });
   return job;
+}
+
+/**
+ * Records a reviewer's decision on a finding and updates the contract's score.
+ * Dismissing a finding removes it from the score; accepting keeps it in.
+ */
+export async function setFindingStatus(
+  tx: OrgTx,
+  input: { findingId: string; status: FindingStatus; actorId: string },
+): Promise<{ finding: Finding; riskScore: number } | null> {
+  const [before] = await tx
+    .select()
+    .from(findings)
+    .where(eq(findings.id, input.findingId));
+  if (!before) return null;
+
+  const decided = input.status !== "open";
+  const [finding] = await tx
+    .update(findings)
+    .set({
+      status: input.status,
+      reviewedBy: decided ? input.actorId : null,
+      reviewedAt: decided ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(findings.id, input.findingId))
+    .returning();
+
+  if (before.status !== input.status) {
+    await tx.insert(auditLog).values({
+      orgId: finding.orgId,
+      actorId: input.actorId,
+      action: `finding.${input.status === "open" ? "reopened" : input.status}`,
+      target: `finding:${finding.id}`,
+      diff: {
+        contractId: finding.contractId,
+        title: finding.title,
+        status: [before.status, input.status],
+      },
+    });
+  }
+
+  const { score } = await rescoreContract(tx, finding.contractId);
+  return { finding, riskScore: score };
 }
