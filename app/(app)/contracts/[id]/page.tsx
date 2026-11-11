@@ -12,6 +12,7 @@ import { OurPartySelect } from "@/components/contracts/our-party-select";
 import { RetryAnalysis } from "@/components/contracts/retry-analysis";
 import { RiskSummary } from "@/components/contracts/risk-summary";
 import { StatusBadge } from "@/components/contracts/status-badge";
+import { UploadDropzone } from "@/components/contracts/upload-dropzone";
 import { Skeleton } from "@/components/ui/skeleton";
 import { canEditContracts, getAuthContext } from "@/lib/auth/context";
 import { isUuid } from "@/lib/contracts/ids";
@@ -66,8 +67,48 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
           {job && job.tokensIn + job.tokensOut > 0
             ? ` · last analysis used ${(job.tokensIn + job.tokensOut).toLocaleString("en-IN")} tokens`
             : ""}
+          {contract.version > 1 ? ` · version ${contract.version}` : ""}
         </p>
       </div>
+
+      {contract.status === "ready" && (
+        <nav aria-label="Contract actions" className="flex flex-wrap gap-2 text-sm">
+          {[
+            { href: `/contracts/${contract.id}/report`, label: "Risk report" },
+            ...(canEditContracts(user)
+              ? [{ href: `/contracts/${contract.id}/negotiate`, label: "Negotiate" }]
+              : []),
+            ...(contract.parentId
+              ? [
+                  {
+                    href: `/contracts/${contract.id}/compare`,
+                    label: "Compare with previous version",
+                  },
+                ]
+              : []),
+            {
+              href: `/api/contracts/${contract.id}/export?format=csv`,
+              label: "Findings CSV",
+            },
+            {
+              href: `/api/contracts/${contract.id}/export?format=json`,
+              label: "Findings JSON",
+            },
+            {
+              href: `/api/contracts/${contract.id}/export?format=docx`,
+              label: "Word redline (accepted fixes)",
+            },
+          ].map((action) => (
+            <a
+              key={action.href}
+              href={action.href}
+              className="hover:bg-muted rounded-md border px-3 py-1.5"
+            >
+              {action.label}
+            </a>
+          ))}
+        </nav>
+      )}
 
       {contract.status === "ready" && contract.text !== null ? (
         <>
@@ -109,6 +150,15 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
             canReview={canEditContracts(user)}
           />
           <ComplianceMatrix results={compliance} clauses={clauses} />
+          {canEditContracts(user) && (
+            <section aria-label="Upload a new version">
+              <h2 className="mb-2 text-sm font-medium">Received a revised draft?</h2>
+              <UploadDropzone
+                parentId={contract.id}
+                prompt="Drop the new version here to compare it with this one"
+              />
+            </section>
+          )}
         </>
       ) : contract.status === "failed" ? (
         <div role="alert" className="border-destructive/40 rounded-lg border px-6 py-10">

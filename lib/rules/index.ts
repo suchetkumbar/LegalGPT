@@ -63,6 +63,9 @@ export function runRules(
     };
 
     if (rule.kind === "contract") {
+      // A statement of work incorporates its master agreement, so a clause
+      // "missing" from the SOW is usually there.
+      if (context.contractType === "statement_of_work") continue;
       const result = rule.detect(context);
       if (!result) continue;
       findings.push({

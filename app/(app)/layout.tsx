@@ -22,6 +22,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
                 Contracts
               </Link>
               <Link
+                href="/generate"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Draft
+              </Link>
+              <Link
                 href="/playbooks"
                 className="text-muted-foreground hover:text-foreground"
               >

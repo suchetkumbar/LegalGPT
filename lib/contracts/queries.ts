@@ -30,6 +30,8 @@ export type NewContract = {
   mimeType: string;
   sizeBytes: number;
   fileHash: string;
+  /** The earlier version this is a revision of. */
+  parent?: { id: string; version: number } | null;
 };
 
 /** Creates the contract, queues its analysis job and records the upload. */
@@ -49,6 +51,8 @@ export async function createContract(
       mimeType: input.mimeType,
       sizeBytes: input.sizeBytes,
       fileHash: input.fileHash,
+      parentId: input.parent?.id ?? null,
+      version: input.parent ? input.parent.version + 1 : 1,
     })
     .returning();
 

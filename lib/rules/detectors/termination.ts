@@ -249,7 +249,9 @@ export const terminationRules: Rule[] = [
     likelihood: 3,
     clauseType: "termination",
     detect: (context) =>
-      !context.hasType("termination") && !/\bterminat/i.test(context.text),
+      context.contractType !== "nda" &&
+      !context.hasType("termination") &&
+      !/\bterminat/i.test(context.text),
     explanation:
       "The contract does not say how or when it can be ended, so leaving it early would depend on proving a serious breach.",
     suggestion:

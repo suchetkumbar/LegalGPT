@@ -47,7 +47,8 @@ export const dataRules: Rule[] = [
     likelihood: 3,
     pattern:
       /\b(?:transfer(?:red|s)?|stor(?:e|ed|es|age)|process(?:ed|es|ing)?|host(?:ed|s|ing)?)\b[^.;]{0,100}\b(?:outside|out of)\s+India\b|\bcross-border\b/i,
-    unless: /\bshall not\b|\bnot (?:be )?(?:transfer|stor|process|host)/i,
+    unless:
+      /\bshall not\b|\bnot (?:be )?(?:transfer|stor|process|host)|\bwithout (?:the )?prior (?:written )?consent\b|\bno\b[^.;]{0,40}\btransfers?\b/i,
     explanation:
       "Data may be moved or held outside India. Section 16 of the Digital Personal Data Protection Act, 2023 lets the government restrict transfers to notified countries, and sector rules such as the RBI's payment-data localisation direction can prohibit it outright.",
     suggestion:
@@ -66,7 +67,7 @@ export const dataRules: Rule[] = [
     severity: 3,
     likelihood: 3,
     pattern:
-      /\b(?:retain|keep|store)s?\b[^.;]{0,100}\b(?:indefinitely|in perpetuity|perpetual(?:ly)?|for as long as it (?:deems|considers|wishes)|without (?:any )?time limit)\b/i,
+      /\b(?:retain|keep|store)s?\b[^.;]{0,60}\b(?:data|information|records)\b[^.;]{0,80}\b(?:indefinitely|in perpetuity|perpetual(?:ly)?|for as long as it (?:deems|considers|wishes)|without (?:any )?time limit)\b/i,
     explanation:
       "Personal data may be kept with no end date. Section 8(7) of the Digital Personal Data Protection Act, 2023 requires erasure once the purpose is served, unless another law requires retention.",
     suggestion:

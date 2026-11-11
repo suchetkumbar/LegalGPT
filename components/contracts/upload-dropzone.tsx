@@ -9,7 +9,14 @@ import { cn } from "@/lib/utils";
 const ACCEPT = ".pdf,.docx,.txt";
 const MAX_BYTES = 20 * 1024 * 1024;
 
-export function UploadDropzone() {
+export function UploadDropzone({
+  parentId,
+  prompt = "Drop a contract here, or click to choose",
+}: {
+  /** Upload as a new version of this contract. */
+  parentId?: string;
+  prompt?: string;
+} = {}) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -31,6 +38,7 @@ export function UploadDropzone() {
     try {
       const body = new FormData();
       body.append("file", file);
+      if (parentId) body.append("parentId", parentId);
       const response = await fetch("/api/contracts", { method: "POST", body });
       const result = (await response.json().catch(() => null)) as {
         id?: string;
@@ -79,9 +87,7 @@ export function UploadDropzone() {
           <Upload className="text-muted-foreground size-7" aria-hidden />
         )}
         <span className="mt-3 font-medium">
-          {uploading
-            ? `Uploading ${uploading}`
-            : "Drop a contract here, or click to choose"}
+          {uploading ? `Uploading ${uploading}` : prompt}
         </span>
         <span className="text-muted-foreground mt-1 text-sm">
           PDF, Word (.docx) or text, up to 20 MB

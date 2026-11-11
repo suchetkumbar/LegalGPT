@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { canEditContracts, getApiAuthContext } from "@/lib/auth/context";
+import { parentVersion } from "@/lib/contracts/full";
+import { isUuid } from "@/lib/contracts/ids";
 import { createContract } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
 import { startAnalysis } from "@/lib/pipeline/enqueue";
@@ -8,6 +10,8 @@ import { MAX_UPLOAD_BYTES, MIME_TYPES, detectFileKind } from "@/lib/pipeline/fil
 import { getStorage } from "@/lib/storage";
 
 export const maxDuration = 300;
+
+class ParentNotFound extends Error {}
 
 function fail(status: number, error: string) {
   return Response.json({ error }, { status });
@@ -58,10 +62,17 @@ export async function POST(request: Request) {
   const storage = getStorage();
   await storage.put(storageKey, bytes, MIME_TYPES[kind]);
 
+  // A new version of an existing contract: must be one this org can see.
+  const parentRaw = form.get("parentId");
+  const parentId = typeof parentRaw === "string" && isUuid(parentRaw) ? parentRaw : null;
+
   let jobId: string;
   try {
-    const created = await withOrg(org.id, (tx) =>
-      createContract(tx, {
+    const created = await withOrg(org.id, async (tx) => {
+      const parent = parentId ? await parentVersion(tx, parentId) : null;
+      if (parentId && !parent) throw new ParentNotFound();
+      return createContract(tx, {
+        parent,
         id: contractId,
         orgId: org.id,
         createdBy: user.id,
@@ -71,11 +82,14 @@ export async function POST(request: Request) {
         mimeType: MIME_TYPES[kind],
         sizeBytes: bytes.length,
         fileHash: createHash("sha256").update(bytes).digest("hex"),
-      }),
-    );
+      });
+    });
     jobId = created.job.id;
   } catch (error) {
     await storage.delete(storageKey).catch(() => {});
+    if (error instanceof ParentNotFound) {
+      return fail(404, "The earlier version could not be found.");
+    }
     throw error;
   }
 

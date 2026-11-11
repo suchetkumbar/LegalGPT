@@ -348,3 +348,50 @@ Deviations:
 - A 25-contract compliance gold set.
 - Rule packs need review by a lawyer before anyone relies on them; the
   references were written from the statutes, not checked by counsel.
+
+## Phase 4 — Generation, comparison and negotiation (built)
+
+No automatic model calls. Two optional buttons use the model, one call per click.
+
+| Plan item                                                                        | Status                                                                                                                                       |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Template library: mutual and one-way NDA, MSA, SOW, SaaS, consulting, employment | Done: 7 templates as clause skeletons                                                                                                        |
+| Generation wizard                                                                | Built at `/generate`. Drafts are assembled from the template and the organisation's playbook; "Adapt the draft with AI" is optional (1 call) |
+| Self-check through the risk and compliance pipelines                             | Done on every draft, without saving it. Not regenerated automatically                                                                        |
+| Version compare: alignment, word-level diff, favourable/neutral/unfavourable     | Built at `/contracts/:id/compare`. Classification by rule engine, not a model                                                                |
+| Negotiation assistant in three tones                                             | Built at `/contracts/:id/negotiate`: playbook wording (free) or one AI call for all selected findings                                        |
+| Exports: .docx redline, PDF risk report, CSV and JSON findings                   | Done; the PDF is the browser's "Save as PDF" of a print page                                                                                 |
+
+Deviations:
+
+- **Drafts are assembled, not written by the model.** Each clause is the
+  playbook's standard position or fixed template wording. This costs nothing and
+  is repeatable, but the drafting is only as good as the playbook. The model is
+  used only when the drafter asks for changes.
+- **No automatic regeneration of a high-scoring draft.** The self-check is shown
+  instead. Every template scores under 30 on the default playbook (tested).
+- **Change classification uses the rule engine**, not Sonnet. A change that adds
+  a known risk pattern is unfavourable, one that removes one is favourable; any
+  other change is shown as "changed". This misses changes the rules do not know.
+- **Redlines are formatting marks** (red strike-through, blue underline), not
+  Word's tracked changes.
+- **PDF report via the browser's print dialog**, not `@react-pdf/renderer`, to
+  avoid a large dependency.
+- **A new version is uploaded from the contract page** and linked with
+  `parent_id`; its `version` is one more than its parent's.
+- **Exports are audited** (`contract.exported`).
+
+### Phase 4 exit criteria
+
+| Criterion                                                       | Result                                                                     | Status                       |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------- |
+| Generated drafts score under 30 on the org's own playbook       | All 7 templates score under 30 with the default playbook (tested)          | Met for the default playbook |
+| A lawyer rates 80% of counter-proposals usable with light edits | No lawyer review; the AI path has not been called live                     | Not measured                 |
+| Exported .docx opens correctly in Word and Google Docs          | Valid Office Open XML produced (tested); not opened in Word or Google Docs | Not verified                 |
+
+### Open items carried forward (Phase 4)
+
+- Open an exported redline in Word and Google Docs.
+- Try "Adapt the draft with AI" and "Draft with AI" live; both reuse the
+  reasoning tier, which timed out once in Phase 2.
+- Have a lawyer review the templates and default playbook wording.

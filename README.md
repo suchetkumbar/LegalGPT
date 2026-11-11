@@ -93,6 +93,13 @@ Everything else in `.env.example` is optional in development.
   duty first, then GDPR Article 28 and CCPA when the contract points to them, plus
   the organisation's own policies written at `/compliance`. Each rule gives pass,
   warn or fail, citing the clause and the pack version. Deterministic, no model.
+- **Drafting, compare, negotiate, export.** `/generate` assembles a draft from a
+  template (`lib/drafting`) and the playbook, then checks it with the rules and
+  compliance packs. Uploading a new version from a contract page enables
+  `/contracts/:id/compare` (`lib/compare`). `/contracts/:id/negotiate` offers
+  counter-proposals from the playbook, or in three tones from one AI call
+  (`lib/negotiate`). Findings export as CSV or JSON, the contract as a Word
+  redline, and `/contracts/:id/report` prints as a PDF (`lib/export`).
 - **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
   inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
   English only, up to 40 pages. The contract is flagged as read by OCR.
