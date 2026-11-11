@@ -15,7 +15,7 @@ export type ReminderEmail = { to: string[]; subject: string; text: string };
  * Sends one email through Resend. Without RESEND_API_KEY the email is logged
  * instead, so the sweep can be tried locally without an account.
  */
-async function send(email: ReminderEmail): Promise<"sent" | "logged"> {
+export async function sendEmail(email: ReminderEmail): Promise<"sent" | "logged"> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.info(
@@ -86,7 +86,7 @@ export async function sendDueReminders(today = new Date().toISOString().slice(0,
         (item) =>
           `- ${item.dueDate} (in ${item.threshold} day${item.threshold === 1 ? "" : "s"}): ${item.contractTitle}. ${item.description}${appUrl ? `\n  ${appUrl}/contracts/${item.contractId}` : ""}`,
       );
-    await send({
+    await sendEmail({
       to,
       subject: `${items.length} contract deadline${items.length === 1 ? "" : "s"} coming up`,
       text: `Upcoming contract deadlines for ${items[0].orgName}:\n\n${lines.join("\n")}\n\nDates are worked out from the contract text. Check the contract before acting. Not legal advice.`,

@@ -6,6 +6,7 @@ import { retrieve } from "@/lib/ask/retrieve";
 import { getApiAuthContext } from "@/lib/auth/context";
 import { isUuid } from "@/lib/contracts/ids";
 import { withOrg } from "@/lib/db";
+import { BudgetExceededError, assertWithinBudget, recordUsage } from "@/lib/usage/budget";
 
 export const maxDuration = 300;
 
@@ -28,6 +29,14 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   const { question, contractId, deep } = parsed.data;
+  try {
+    await withOrg(context.org.id, assertWithinBudget);
+  } catch (error) {
+    if (error instanceof BudgetExceededError) {
+      return Response.json({ error: error.message }, { status: 429 });
+    }
+    throw error;
+  }
 
   // The question's embedding improves recall; if it fails, full-text search alone is used.
   let embedding: number[] | null = null;
@@ -60,6 +69,14 @@ export async function POST(request: Request) {
       portfolio: !contractId,
       deep,
     });
+    await withOrg(context.org.id, (tx) =>
+      recordUsage(tx, {
+        orgId: context.org.id,
+        userId: context.user.id,
+        kind: deep ? "ask_deep" : "ask",
+        usage: answer.usage,
+      }),
+    );
     return Response.json({
       ...answer,
       sources: sources.map(({ clauseId, contractId: id, contractTitle, label }) => ({

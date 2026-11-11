@@ -14,7 +14,10 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             <Link href="/dashboard" className="font-semibold tracking-tight">
               LegalGPT
             </Link>
-            <nav className="flex items-center gap-4 text-sm">
+            <nav
+              aria-label="Main"
+              className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
+            >
               <Link
                 href="/dashboard"
                 className="text-muted-foreground hover:text-foreground"
@@ -28,6 +31,21 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
                 Draft
               </Link>
               <Link
+                href="/analytics"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Portfolio
+              </Link>
+              <Link
+                href="/obligations"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Obligations
+              </Link>
+              <Link href="/bulk" className="text-muted-foreground hover:text-foreground">
+                Bulk scan
+              </Link>
+              <Link
                 href="/playbooks"
                 className="text-muted-foreground hover:text-foreground"
               >
@@ -39,11 +57,11 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
               >
                 Policies
               </Link>
-              <Link
-                href="/obligations"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Obligations
+              <Link href="/usage" className="text-muted-foreground hover:text-foreground">
+                Usage
+              </Link>
+              <Link href="/audit" className="text-muted-foreground hover:text-foreground">
+                Audit
               </Link>
             </nav>
             <Suspense fallback={<Skeleton className="h-7 w-40" />}>

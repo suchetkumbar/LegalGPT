@@ -440,3 +440,39 @@ Deviations:
 - Ask a few questions live and check the citations.
 - Deploy and confirm the cron runs (it needs `CRON_SECRET` set on Vercel).
 - An obligations gold set with real effective dates and terms.
+
+## Phase 6 — Collaboration, portfolio analytics and bulk scan (built)
+
+No new model calls; bulk scan runs the normal analysis per contract.
+
+| Plan item                                                                                                      | Status                                                                                      |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Roles, assignment, workflow draft → in review → approved → signed, threaded comments on findings               | Done. Approval needs someone other than the uploader; only an admin marks a contract signed |
+| Audit trail of accepts, dismisses, edits and exports                                                           | Done; `/audit` (admins) lists it                                                            |
+| Portfolio dashboard: risk distribution, top 10 recurring issues, exposure by counterparty, renewals in 90 days | Built at `/analytics`                                                                       |
+| Bulk scan: zip of up to 200 files, run in the background, email when done                                      | Built at `/bulk`, throttled queue instead of the Batch API                                  |
+| Per-org usage metering and token budgets, usage page                                                           | Built at `/usage`, in Postgres instead of Upstash                                           |
+
+Deviations:
+
+- **Bulk scan uses a throttled queue, not the Batch API**, which is paid. With
+  Inngest, analyses start at most two a minute per organisation; 200 contracts
+  take about 100 minutes. Without Inngest, a bulk scan is limited to 10 files run
+  one after another. Zips are limited to 25 MB.
+- **Usage and budgets live in Postgres, not Upstash**, to avoid another service.
+  Analysis tokens come from `jobs`, the AI buttons record `usage_events`. When a
+  budget is spent, analyses fall back to the rule-based review and the AI buttons
+  return 429. Embedding calls report no token count, so they are not counted.
+- **Four-eyes approval**: the uploader cannot approve their own contract. An
+  organisation with a single member therefore cannot approve anything; add a
+  second member.
+- **Comments are flat per finding**, not nested replies.
+- **The workflow starts at "in review"** for uploaded contracts.
+
+### Phase 6 exit criteria
+
+| Criterion                                                       | Result                                                                                    | Status                               |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------ |
+| A two-person review flow works end to end                       | Upload → assign → approve by the reviewer → sign by an admin, with audit entries (tested) | Met in tests; not tried in a browser |
+| A 100-contract bulk scan finishes overnight with no failed jobs | Archive handling and throttling built; not run                                            | Not verified                         |
+| Budget limits block calls once a budget runs out                | Tested: no model call is made and the rule-based review still runs                        | Met in tests                         |

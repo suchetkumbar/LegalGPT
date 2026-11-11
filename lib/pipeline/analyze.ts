@@ -17,6 +17,7 @@ import { loadPacks } from "@/lib/compliance/store";
 import { runCompliance } from "@/lib/compliance/engine";
 import { extractObligations } from "@/lib/obligations/extract";
 import { ensurePlaybook } from "@/lib/playbook/queries";
+import { BudgetExceededError } from "@/lib/usage/budget";
 import { rescoreContract } from "@/lib/scoring/rescore";
 
 const {
@@ -64,6 +65,8 @@ export type AnalysisDeps = {
   ai: PipelineAi;
   /** Reads scanned PDFs. Defaults to Tesseract; tests pass a fake. */
   ocr?: OcrFunction;
+  /** Throws BudgetExceededError if the org's monthly AI budget is spent. */
+  checkBudget?: () => Promise<void>;
 };
 
 export type AnalysisIds = { contractId: string; jobId: string };
@@ -570,6 +573,7 @@ export async function runStage(
       .set({ stage, status: "running", updatedAt: new Date() })
       .where(eq(jobs.id, ids.jobId)),
   );
+  if (deps.checkBudget && isModelStage(stage)) await deps.checkBudget();
   await STAGES[stage](deps, ids);
 }
 
@@ -623,9 +627,11 @@ export async function failAnalysis(
       message =
         error instanceof DocumentError
           ? error.message
-          : modelStage
-            ? MODEL_FAILURE
-            : GENERIC_FAILURE;
+          : error instanceof BudgetExceededError
+            ? "The organisation's monthly AI budget is used up, so only the rule-based review ran. An admin can raise the budget on the Usage page."
+            : modelStage
+              ? MODEL_FAILURE
+              : GENERIC_FAILURE;
 
       await tx
         .update(jobs)

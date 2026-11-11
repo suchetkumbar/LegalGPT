@@ -106,6 +106,11 @@ Everything else in `.env.example` is optional in development.
   the text. Deadlines are worked out by rules from the effective date and the
   contract's durations (`lib/obligations`), shown at `/obligations`, exported as
   .ics, and emailed to admins 30, 7 and 1 days ahead by a daily cron.
+- **Teams and portfolio.** Contracts move draft → in review → approved → signed
+  with an assigned reviewer (`lib/collab/workflow.ts`); findings carry comment
+  threads; `/audit` shows the audit trail. `/analytics` summarises the portfolio,
+  `/bulk` scans a zip of contracts through a throttled queue, and `/usage` shows
+  model usage against an optional monthly token budget (`lib/usage/budget.ts`).
 - **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
   inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
   English only, up to 40 pages. The contract is flagged as read by OCR.

@@ -4,6 +4,7 @@ import { Check, Loader2, RotateCcw, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { FindingComments, type CommentItem } from "@/components/collab/finding-comments";
 import { Button } from "@/components/ui/button";
 import type { ClauseOutline, FindingSummary } from "@/lib/contracts/queries";
 import type { FindingStatus } from "@/lib/db/schema";
@@ -91,11 +92,14 @@ export function ContractViewer({
   clauses,
   findings,
   canReview,
+  comments = [],
 }: {
   text: string;
   clauses: ClauseOutline[];
   findings: FindingSummary[];
   canReview: boolean;
+  /** Discussion threads, keyed by finding. */
+  comments?: CommentItem[];
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<"findings" | "clauses">(
@@ -372,6 +376,10 @@ export function ContractViewer({
                           </Button>
                         ))}
                     </div>
+                    <FindingComments
+                      findingId={finding.id}
+                      comments={comments.filter((c) => c.findingId === finding.id)}
+                    />
                   </li>
                 );
               })}

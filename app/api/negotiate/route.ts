@@ -5,6 +5,7 @@ import { canEditContracts, getApiAuthContext } from "@/lib/auth/context";
 import { getFullContract } from "@/lib/contracts/full";
 import { isUuid } from "@/lib/contracts/ids";
 import { withOrg } from "@/lib/db";
+import { BudgetExceededError, assertWithinBudget, recordUsage } from "@/lib/usage/budget";
 import {
   draftProposals,
   playbookProposals,
@@ -70,9 +71,25 @@ export async function POST(request: Request) {
     return Response.json({ error: "No such findings." }, { status: 400 });
 
   if (!useModel) return Response.json({ proposals: playbookProposals(inputs) });
+  try {
+    await withOrg(context.org.id, assertWithinBudget);
+  } catch (error) {
+    if (error instanceof BudgetExceededError) {
+      return Response.json({ error: error.message }, { status: 429 });
+    }
+    throw error;
+  }
 
   try {
     const result = await draftProposals(pipelineAi, inputs, contract.contract.ourParty);
+    await withOrg(orgId, (tx) =>
+      recordUsage(tx, {
+        orgId,
+        userId: context.user.id,
+        kind: "negotiate",
+        usage: result.usage,
+      }),
+    );
     return Response.json({ proposals: result.proposals, model: result.modelId });
   } catch (error) {
     console.error("[negotiate] failed:", error instanceof Error ? error.message : error);

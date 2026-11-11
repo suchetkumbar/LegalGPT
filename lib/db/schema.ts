@@ -43,6 +43,8 @@ export const orgs = pgTable(
     plan: text("plan").notNull().default("free"),
     // Data-residency region. India first; the Vercel function region is bom1.
     region: text("region").notNull().default("in"),
+    // Monthly ceiling on model tokens. Null means no limit.
+    monthlyTokenBudget: integer("monthly_token_budget"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -156,6 +158,10 @@ export const contracts = pgTable(
     }),
     version: integer("version").notNull().default(1),
     riskScore: integer("risk_score"),
+    // Review workflow: draft → in_review → approved → signed.
+    workflowStatus: text("workflow_status").notNull().default("in_review"),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    bulkScanId: uuid("bulk_scan_id"),
     // Executive summary written by the model pass.
     summary: text("summary"),
     createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
@@ -493,6 +499,85 @@ export const jobs = pgTable(
   ],
 ).enableRLS();
 
+export const comments = pgTable(
+  "comments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    findingId: uuid("finding_id").references(() => findings.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("comments_contract_idx").on(t.contractId, t.createdAt),
+    pgPolicy("comments_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export const bulkScans = pgTable(
+  "bulk_scans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    fileName: text("file_name").notNull(),
+    total: integer("total").notNull(),
+    skipped: jsonb("skipped")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    pgPolicy("bulk_scans_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+/** Model use outside the analysis pipeline (questions, drafting, negotiation). */
+export const usageEvents = pgTable(
+  "usage_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(),
+    tokensIn: integer("tokens_in").notNull().default(0),
+    tokensOut: integer("tokens_out").notNull().default(0),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("usage_events_org_at_idx").on(t.orgId, t.at),
+    pgPolicy("usage_events_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
+export type Comment = typeof comments.$inferSelect;
+export type BulkScan = typeof bulkScans.$inferSelect;
 export type Org = typeof orgs.$inferSelect;
 export type Contract = typeof contracts.$inferSelect;
 export type ContractStatus = (typeof contractStatus.enumValues)[number];

@@ -4,6 +4,7 @@ import { pipelineAi } from "@/lib/ai/generate";
 import { canEditContracts, getApiAuthContext } from "@/lib/auth/context";
 import { loadPacks } from "@/lib/compliance/store";
 import { withOrg } from "@/lib/db";
+import { BudgetExceededError, assertWithinBudget, recordUsage } from "@/lib/usage/budget";
 import {
   assembleDraft,
   contractTypeFor,
@@ -87,10 +88,27 @@ export async function POST(request: Request) {
   }
 
   try {
+    await withOrg(context.org.id, assertWithinBudget);
+  } catch (error) {
+    if (error instanceof BudgetExceededError) {
+      return Response.json({ error: error.message }, { status: 429 });
+    }
+    throw error;
+  }
+
+  try {
     const refined = await refineDraft(pipelineAi, {
       text: input.text,
       instructions: input.instructions,
     });
+    await withOrg(orgId, (tx) =>
+      recordUsage(tx, {
+        orgId,
+        userId: context.user.id,
+        kind: "draft_refine",
+        usage: refined.usage,
+      }),
+    );
     return Response.json({
       title: template.title,
       text: refined.text,

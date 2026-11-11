@@ -23,11 +23,13 @@ export async function startAnalysis(input: {
     await inngest.send({ name: ANALYZE_REQUESTED, data: input });
     return "queued";
   }
-  after(() =>
-    runAnalysis(analysisDeps(input.orgId), {
+  after(async () => {
+    await runAnalysis(analysisDeps(input.orgId), {
       contractId: input.contractId,
       jobId: input.jobId,
-    }),
-  );
+    });
+    const { notifyBulkScanIfDone } = await import("@/lib/bulk/notify");
+    await notifyBulkScanIfDone(input.contractId);
+  });
   return "inline";
 }

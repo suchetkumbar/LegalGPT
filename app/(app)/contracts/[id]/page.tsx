@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { AnalysisProgress } from "@/components/contracts/analysis-progress";
 import { ContractViewer } from "@/components/contracts/contract-viewer";
 import { AskPanel } from "@/components/ask/ask-panel";
+import { WorkflowControls } from "@/components/collab/workflow-controls";
 import { ComplianceMatrix } from "@/components/contracts/compliance-matrix";
 import { KeyDetails } from "@/components/contracts/key-details";
 import { OurPartySelect } from "@/components/contracts/our-party-select";
@@ -20,6 +21,7 @@ import { isUuid } from "@/lib/contracts/ids";
 import { getContract } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
 import { getComplianceResults } from "@/lib/compliance/store";
+import { listComments, listMembers } from "@/lib/collab/workflow";
 import { listObligations } from "@/lib/obligations/queries";
 import { getWeights } from "@/lib/playbook/queries";
 
@@ -50,10 +52,12 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
         weights: await getWeights(tx),
         compliance: await getComplianceResults(tx, id),
         obligations: await listObligations(tx, { contractId: id }),
+        comments: await listComments(tx, id),
+        members: await listMembers(tx),
       }))
     : null;
   if (!loaded?.detail) notFound();
-  const { detail, weights, compliance, obligations } = loaded;
+  const { detail, weights, compliance, obligations, comments, members } = loaded;
 
   const { contract, clauses, entities, findings, job } = detail;
 
@@ -73,6 +77,16 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
           {contract.version > 1 ? ` · version ${contract.version}` : ""}
         </p>
       </div>
+
+      {contract.status === "ready" && (
+        <WorkflowControls
+          contractId={contract.id}
+          status={contract.workflowStatus}
+          assigneeId={contract.assigneeId}
+          members={members}
+          canEdit={canEditContracts(user)}
+        />
+      )}
 
       {contract.status === "ready" && (
         <nav aria-label="Contract actions" className="flex flex-wrap gap-2 text-sm">
@@ -151,6 +165,10 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
             clauses={clauses}
             findings={findings}
             canReview={canEditContracts(user)}
+            comments={comments.map((c) => ({
+              ...c,
+              createdAt: c.createdAt.toISOString(),
+            }))}
           />
           <ComplianceMatrix results={compliance} clauses={clauses} />
           {obligations.length > 0 && (

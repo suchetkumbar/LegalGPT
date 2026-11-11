@@ -78,6 +78,13 @@
       "when": 1794422438563,
       "tag": "0010_obligations_and_search",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794423767649,
+      "tag": "0011_collaboration_usage_bulk",
+      "breakpoints": true
     }
   ]
 }
