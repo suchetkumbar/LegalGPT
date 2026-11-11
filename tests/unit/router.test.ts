@@ -11,7 +11,7 @@ import {
 function apiError(statusCode: number | undefined) {
   return new APICallError({
     message: `status ${statusCode}`,
-    url: "https://api.anthropic.com/v1/messages",
+    url: "https://generativelanguage.googleapis.com/v1beta/models",
     requestBodyValues: {},
     statusCode,
   });
@@ -19,15 +19,23 @@ function apiError(statusCode: number | undefined) {
 
 const env = {};
 
+// A three-model chain, so the fallback tests do not depend on the defaults.
+const chainEnv = {
+  MODEL_TIER_REASONING: "primary",
+  MODEL_TIER_REASONING_FALLBACK: "secondary",
+  MODEL_TIER_STANDARD: "tertiary",
+  MODEL_TIER_FAST: "fast",
+};
+
 describe("modelChain", () => {
   it("uses the documented defaults", () => {
+    // The fallback and the standard tier share a model by default, so it appears once.
     expect(modelChain("reasoning", env)).toEqual([
-      "claude-fable-5-2",
-      "claude-opus-5-5",
-      "claude-sonnet-5-5",
+      "gemini-3.8-flash",
+      "gemini-3.6-flash",
     ]);
-    expect(modelChain("standard", env)).toEqual(["claude-sonnet-5-5"]);
-    expect(modelChain("fast", env)).toEqual(["claude-haiku-5-5"]);
+    expect(modelChain("standard", env)).toEqual(["gemini-3.6-flash"]);
+    expect(modelChain("fast", env)).toEqual(["gemini-3.5-flash-lite"]);
   });
 
   it("reads each tier from the environment", () => {
@@ -45,18 +53,21 @@ describe("modelChain", () => {
     expect(
       modelChain("reasoning", {
         MODEL_TIER_REASONING: "  ",
-        MODEL_TIER_REASONING_FALLBACK: "claude-sonnet-5-5",
+        MODEL_TIER_REASONING_FALLBACK: "gemini-3.6-flash",
       }),
-    ).toEqual(["claude-fable-5-2", "claude-sonnet-5-5"]);
+    ).toEqual(["gemini-3.8-flash", "gemini-3.6-flash"]);
   });
 });
 
 describe("isFallbackError", () => {
-  it.each([500, 502, 503, 529, 403, 404, 408, undefined])("falls back on %s", (s) => {
-    expect(isFallbackError(apiError(s))).toBe(true);
-  });
+  it.each([500, 502, 503, 529, 403, 404, 408, 429, undefined])(
+    "falls back on %s",
+    (s) => {
+      expect(isFallbackError(apiError(s))).toBe(true);
+    },
+  );
 
-  it.each([400, 401, 413, 422, 429])("does not fall back on %s", (s) => {
+  it.each([400, 401, 413, 422])("does not fall back on %s", (s) => {
     expect(isFallbackError(apiError(s))).toBe(false);
   });
 
@@ -76,46 +87,49 @@ describe("isFallbackError", () => {
 describe("runWithFallback", () => {
   it("returns the primary model's result without a fallback flag", async () => {
     const call = vi.fn(async (modelId: string) => `ok:${modelId}`);
-    const routed = await runWithFallback("reasoning", call, { env });
+    const routed = await runWithFallback("reasoning", call, { env: chainEnv });
 
     expect(routed).toMatchObject({
-      result: "ok:claude-fable-5-2",
-      modelId: "claude-fable-5-2",
+      result: "ok:primary",
+      modelId: "primary",
       usedFallback: false,
       failedAttempts: [],
     });
     expect(call).toHaveBeenCalledTimes(1);
   });
 
-  it("moves to Opus when Fable returns a 5xx", async () => {
+  it("moves to the second model when the primary returns a 5xx", async () => {
     const onFallback = vi.fn();
     const call = vi.fn(async (modelId: string) => {
-      if (modelId === "claude-fable-5-2") throw apiError(503);
+      if (modelId === "primary") throw apiError(503);
       return modelId;
     });
 
-    const routed = await runWithFallback("reasoning", call, { env, onFallback });
+    const routed = await runWithFallback("reasoning", call, {
+      env: chainEnv,
+      onFallback,
+    });
 
-    expect(routed.modelId).toBe("claude-opus-5-5");
+    expect(routed.modelId).toBe("secondary");
     expect(routed.usedFallback).toBe(true);
-    expect(routed.failedAttempts.map((a) => a.modelId)).toEqual(["claude-fable-5-2"]);
+    expect(routed.failedAttempts.map((a) => a.modelId)).toEqual(["primary"]);
     expect(onFallback).toHaveBeenCalledWith(
       expect.objectContaining({
-        modelId: "claude-fable-5-2",
-        nextModelId: "claude-opus-5-5",
+        modelId: "primary",
+        nextModelId: "secondary",
       }),
     );
   });
 
-  it("walks the whole chain when access to both top models is unavailable", async () => {
+  it("walks the whole chain when the first two models are unavailable", async () => {
     const call = vi.fn(async (modelId: string) => {
-      if (modelId !== "claude-sonnet-5-5") throw apiError(403);
+      if (modelId !== "tertiary") throw apiError(403);
       return modelId;
     });
 
-    const routed = await runWithFallback("reasoning", call, { env });
+    const routed = await runWithFallback("reasoning", call, { env: chainEnv });
 
-    expect(routed.modelId).toBe("claude-sonnet-5-5");
+    expect(routed.modelId).toBe("tertiary");
     expect(call).toHaveBeenCalledTimes(3);
   });
 
@@ -124,7 +138,9 @@ describe("runWithFallback", () => {
       throw apiError(400);
     });
 
-    await expect(runWithFallback("reasoning", call, { env })).rejects.toMatchObject({
+    await expect(
+      runWithFallback("reasoning", call, { env: chainEnv }),
+    ).rejects.toMatchObject({
       statusCode: 400,
     });
     expect(call).toHaveBeenCalledTimes(1);
@@ -135,11 +151,25 @@ describe("runWithFallback", () => {
       throw apiError(500);
     });
 
-    const error = await runWithFallback("reasoning", call, { env }).catch((e) => e);
+    const error = await runWithFallback("reasoning", call, { env: chainEnv }).catch(
+      (e) => e,
+    );
 
     expect(error).toBeInstanceOf(AllModelsFailedError);
     expect(error.failedAttempts).toHaveLength(3);
     expect(call).toHaveBeenCalledTimes(3);
+  });
+
+  it("moves on when the primary model's free quota is used up", async () => {
+    const call = vi.fn(async (modelId: string) => {
+      if (modelId === "primary") throw apiError(429);
+      return modelId;
+    });
+
+    const routed = await runWithFallback("reasoning", call, { env: chainEnv });
+
+    expect(routed.modelId).toBe("secondary");
+    expect(routed.usedFallback).toBe(true);
   });
 
   it("has no fallback for the fast tier", async () => {
@@ -147,7 +177,7 @@ describe("runWithFallback", () => {
       throw apiError(500);
     });
 
-    await expect(runWithFallback("fast", call, { env })).rejects.toBeInstanceOf(
+    await expect(runWithFallback("fast", call, { env: chainEnv })).rejects.toBeInstanceOf(
       AllModelsFailedError,
     );
     expect(call).toHaveBeenCalledTimes(1);

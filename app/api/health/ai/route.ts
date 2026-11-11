@@ -28,16 +28,23 @@ export async function GET(request: Request) {
   }
 
   const health = await checkAiHealth((tier) =>
-    routeModel(tier, (model) =>
-      generateText({
+    routeModel(tier, async (model, modelId) => {
+      const result = await generateText({
         model,
         prompt: "Reply with the single word: ok",
-        maxOutputTokens: 16,
+        // Thinking models spend output tokens on reasoning before they write
+        // anything, so a tight cap returns an empty answer.
+        maxOutputTokens: 512,
         maxRetries: 0,
-        timeout: 20_000,
+        timeout: 45_000,
         telemetry: { functionId: "health.ai" },
-      }),
-    ),
+      });
+      // A 200 with no text is not a working model.
+      if (!result.text.trim()) {
+        throw new Error(`${modelId} returned no text (finish: ${result.finishReason})`);
+      }
+      return result;
+    }),
   );
 
   return Response.json(health, {

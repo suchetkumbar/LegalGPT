@@ -10,7 +10,7 @@ is tracked in [docs/PROGRESS.md](docs/PROGRESS.md).
 
 Next.js 16 (App Router, Cache Components) · TypeScript · Tailwind 4 + shadcn/ui ·
 Clerk (auth, organisations) · Neon Postgres + pgvector · Drizzle ORM · Vercel AI SDK
-with Claude · Inngest (from Phase 1) · Sentry, Vercel Analytics, Langfuse · Vitest.
+with Gemini (free tier) · Inngest (from Phase 1) · Sentry, Vercel Analytics, Langfuse · Vitest.
 
 ## Local setup
 
@@ -25,11 +25,11 @@ npm run dev
 
 Minimum variables to run the app locally:
 
-| Variable                                                | Where to get it                                             |
-| ------------------------------------------------------- | ----------------------------------------------------------- |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Clerk dashboard → API keys. Enable **Organizations** too.   |
-| `DATABASE_URL`                                          | Neon project → connection string (use the pooled one).      |
-| `ANTHROPIC_API_KEY`                                     | Anthropic Console. Only needed for `/api/health/ai` so far. |
+| Variable                                                | Where to get it                                                       |
+| ------------------------------------------------------- | --------------------------------------------------------------------- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Clerk dashboard → API keys. Enable **Organizations** too.             |
+| `DATABASE_URL`                                          | Neon project → connection string (use the pooled one).                |
+| `GOOGLE_GENERATIVE_AI_API_KEY`                          | Google AI Studio → API keys. Only needed for `/api/health/ai` so far. |
 
 Everything else in `.env.example` is optional in development.
 
@@ -54,8 +54,9 @@ Everything else in `.env.example` is optional in development.
   tries to read and write across orgs.
 - **Model router.** `lib/ai/router.ts` maps three tiers (`reasoning`, `standard`,
   `fast`) to models from the environment. Reasoning calls fall back
-  Fable 5.2 → Opus 5.5 → Sonnet 5.5 on a 5xx, a timeout or the model being
-  unavailable, and the result records which model answered.
+  Gemini 3.8 Flash → Gemini 3.6 Flash on a 5xx, a timeout, the model being
+  unavailable or its free quota running out, and the result records which model
+  answered.
   `GET /api/health/ai` pings all three tiers (needs a session or
   `Authorization: Bearer $CRON_SECRET`).
 - **Auth.** `proxy.ts` makes everything private except the landing page, the
@@ -66,6 +67,16 @@ Everything else in `.env.example` is optional in development.
 - **Observability.** Sentry is configured to collect no request bodies, cookies,
   headers or model inputs/outputs, because contracts are confidential. Each
   integration is skipped when its env vars are unset.
+
+## Cost
+
+The project is set up to cost nothing. The model defaults are all on Google's free
+tier, and every other service has a free plan. Two things to know:
+
+- Create the Gemini key in a Google Cloud project with **no billing account**, so
+  it cannot be charged. When a quota runs out, calls fail with a 429 instead.
+- Google uses free-tier content to improve its products. Use sample or public
+  contracts only until the app moves to a paid tier.
 
 ## Deploying
 

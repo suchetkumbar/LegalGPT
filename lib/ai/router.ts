@@ -3,7 +3,10 @@ import { APICallError } from "ai";
 /**
  * Model router. Every model call in the app goes through `runWithFallback`,
  * so changing a task's model is an environment change and the reasoning
- * fallback chain (Fable → Opus → Sonnet) applies everywhere.
+ * fallback chain applies everywhere.
+ *
+ * The defaults are Gemini models that Google offers on its free tier. Free
+ * quotas are counted per model, so each tier uses a different model.
  *
  * This module has no provider import, which keeps it unit-testable. The
  * provider binding lives in ./provider.ts.
@@ -13,10 +16,10 @@ export const TIERS = ["reasoning", "standard", "fast"] as const;
 export type ModelTier = (typeof TIERS)[number];
 
 const DEFAULTS = {
-  reasoning: "claude-fable-5-2",
-  reasoningFallback: "claude-opus-5-5",
-  standard: "claude-sonnet-5-5",
-  fast: "claude-haiku-5-5",
+  reasoning: "gemini-3.8-flash",
+  reasoningFallback: "gemini-3.6-flash",
+  standard: "gemini-3.6-flash",
+  fast: "gemini-3.5-flash-lite",
 } as const;
 
 type Env = Record<string, string | undefined>;
@@ -46,16 +49,22 @@ export function modelChain(tier: ModelTier, env: Env = process.env): string[] {
 
 /**
  * Whether an error should move the call on to the next model in the chain:
- * a 5xx, a timeout, or the model being unavailable to this account (403/404,
- * as during the June 2026 Fable suspension). Everything else, such as a 400
- * for a bad request or a 401 for a bad key, would fail identically on any
- * model, so it is rethrown.
+ * a 5xx, a timeout, the model being unavailable to this account (403/404),
+ * or its quota being used up (429, which is routine on the free tier and is
+ * counted per model). Everything else, such as a 400 for a bad request or a
+ * 401 for a bad key, would fail identically on any model, so it is rethrown.
  */
 export function isFallbackError(error: unknown): boolean {
   if (APICallError.isInstance(error)) {
     const status = error.statusCode;
     if (status === undefined) return true; // network failure before any response
-    return status >= 500 || status === 403 || status === 404 || status === 408;
+    return (
+      status >= 500 ||
+      status === 403 ||
+      status === 404 ||
+      status === 408 ||
+      status === 429
+    );
   }
   if (error instanceof Error) {
     if (error.name === "TimeoutError" || error.name === "AbortError") return true;

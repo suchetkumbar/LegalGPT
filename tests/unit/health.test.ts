@@ -6,7 +6,7 @@ import { AllModelsFailedError, modelChain, type RoutedResult } from "@/lib/ai/ro
 
 const unavailable = new APICallError({
   message: "model unavailable",
-  url: "https://api.anthropic.com/v1/messages",
+  url: "https://generativelanguage.googleapis.com/v1beta/models",
   requestBodyValues: {},
   statusCode: 403,
 });
@@ -71,10 +71,10 @@ describe("checkAiHealth", () => {
 
   it("reports a non-fallback error such as a bad API key as down", async () => {
     const health = await checkAiHealth(async () => {
-      throw new Error("invalid x-api-key");
+      throw new Error("API key not valid");
     });
 
     expect(health.status).toBe("down");
-    expect(health.tiers[0].errors[0].message).toBe("invalid x-api-key");
+    expect(health.tiers[0].errors[0].message).toBe("API key not valid");
   });
 });

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { anthropic } from "@ai-sdk/anthropic";
+import { google } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
 
 import {
@@ -16,7 +16,7 @@ export function routeModel<T>(
   call: (model: LanguageModel, modelId: string) => Promise<T>,
   options: RouteOptions = {},
 ): Promise<RoutedResult<T>> {
-  return runWithFallback(tier, (modelId) => call(anthropic(modelId), modelId), {
+  return runWithFallback(tier, (modelId) => call(google(modelId), modelId), {
     onFallback: ({ modelId, nextModelId, error }) => {
       console.warn(
         `[ai/router] ${modelId} unavailable, falling back to ${nextModelId}:`,
