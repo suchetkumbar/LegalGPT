@@ -33,7 +33,8 @@ export type EmbedResult = { embeddings: number[][]; usage: TokenUsage };
 
 export interface PipelineAi {
   generateStructured<T>(request: StructuredRequest<T>): Promise<StructuredResult<T>>;
-  embed(texts: string[]): Promise<EmbedResult>;
+  /** "query" for a search question, "document" (the default) for stored clauses. */
+  embed(texts: string[], kind?: "document" | "query"): Promise<EmbedResult>;
 }
 
 /**

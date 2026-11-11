@@ -100,6 +100,12 @@ Everything else in `.env.example` is optional in development.
   counter-proposals from the playbook, or in three tones from one AI call
   (`lib/negotiate`). Findings export as CSV or JSON, the contract as a Word
   redline, and `/contracts/:id/report` prints as a PDF (`lib/export`).
+- **Ask and obligations.** Questions on a contract page, or on `/obligations` for
+  every contract, retrieve clauses by full-text and vector search
+  (`lib/ask/retrieve.ts`) and get an answer whose citations are checked against
+  the text. Deadlines are worked out by rules from the effective date and the
+  contract's durations (`lib/obligations`), shown at `/obligations`, exported as
+  .ics, and emailed to admins 30, 7 and 1 days ahead by a daily cron.
 - **Scanned PDFs.** A PDF with pages but no selectable text is read by Tesseract
   inside the app (`lib/pipeline/ocr.ts`); nothing is sent to an outside service.
   English only, up to 40 pages. The contract is flagged as read by OCR.

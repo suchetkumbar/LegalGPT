@@ -196,6 +196,8 @@ export const clauses = pgTable(
   },
   (t) => [
     uniqueIndex("clauses_contract_ordinal_idx").on(t.contractId, t.ordinal),
+    // Full-text search for "ask the contract", alongside the vector index.
+    index("clauses_fts_idx").using("gin", sql`to_tsvector('english', ${t.text})`),
     index("clauses_embedding_idx").using("hnsw", t.embedding.op("vector_cosine_ops")),
     pgPolicy("clauses_tenant_isolation", {
       for: "all",
@@ -414,6 +416,44 @@ export const findings = pgTable(
   ],
 ).enableRLS();
 
+export const obligations = pgTable(
+  "obligations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    contractId: uuid("contract_id")
+      .notNull()
+      .references(() => contracts.id, { onDelete: "cascade" }),
+    clauseId: uuid("clause_id").references(() => clauses.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(),
+    ownerParty: text("owner_party"),
+    description: text("description").notNull(),
+    // Null when the contract gives no fixed date (a payment term, a notice period).
+    dueDate: text("due_date"),
+    recurrence: text("recurrence"),
+    noticeDays: integer("notice_days"),
+    quotedText: text("quoted_text"),
+    // The reminder thresholds (30, 7, 1 days) already emailed, so none repeats.
+    remindersSent: jsonb("reminders_sent")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("obligations_due_idx").on(t.dueDate),
+    index("obligations_contract_idx").on(t.contractId),
+    pgPolicy("obligations_tenant_isolation", {
+      for: "all",
+      to: appUser,
+      using: sql`${t.orgId} = ${currentOrgId}`,
+      withCheck: sql`${t.orgId} = ${currentOrgId}`,
+    }),
+  ],
+).enableRLS();
+
 export const jobStatus = pgEnum("job_status", [
   "queued",
   "running",
@@ -464,6 +504,7 @@ export type RulePackRow = typeof rulePacks.$inferSelect;
 export type ComplianceResult = typeof complianceResults.$inferSelect;
 export type Finding = typeof findings.$inferSelect;
 export type FindingStatus = (typeof findingStatus.enumValues)[number];
+export type Obligation = typeof obligations.$inferSelect;
 export type Job = typeof jobs.$inferSelect;
 export type JobStatus = (typeof jobStatus.enumValues)[number];
 export type User = typeof users.$inferSelect;

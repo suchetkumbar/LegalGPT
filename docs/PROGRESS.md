@@ -395,3 +395,48 @@ Deviations:
 - Try "Adapt the draft with AI" and "Draft with AI" live; both reuse the
   reasoning tier, which timed out once in Phase 2.
 - Have a lawyer review the templates and default playbook wording.
+
+## Phase 5 — Ask the contract and the obligations tracker (built)
+
+Obligations and reminders use no model. Each question asked costs two calls.
+
+| Plan item                                                                                      | Status                                                                                         |
+| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Hybrid retrieval: pgvector plus full-text, reciprocal rank fusion, contract or portfolio scope | Done (`lib/ask/retrieve.ts`), tested on the in-process database                                |
+| Chat with inline clause citations; "deep analysis" uses the reasoning tier                     | Built on each contract page and on `/obligations` (whole portfolio). Answers are not streamed  |
+| Intent router                                                                                  | Replaced by where the question is asked, see below                                             |
+| Obligation extraction, resolved against the effective date                                     | Done by rules (`lib/obligations/extract.ts`)                                                   |
+| Calendar view, .ics export, daily reminders at 30, 7 and 1 days                                | Built: `/obligations`, `/api/obligations?format=ics`, `/api/cron/reminders` daily at 09:00 IST |
+
+Deviations:
+
+- **No intent router.** A question asked on a contract page is about that
+  contract; one asked on `/obligations` covers the whole portfolio. That saves a
+  model call per question. Analytics questions answered by SQL are left to the
+  Phase 6 portfolio dashboard.
+- **Answers are returned whole, not streamed**, so every citation can be
+  checked first. A citation is kept only if its quote is found in the clause it
+  names; an answer with no verifiable citation is flagged.
+- **Obligations are extracted by rules, not by Sonnet.** They cover expiry, the
+  last day to stop an automatic renewal, end of probation, payment terms and
+  termination notice. Conditional or unusual obligations ("within 10 days of each
+  milestone") are not found. Months are added as calendar months, clamped to the
+  end of the month.
+- **Reminders go to the organisation's admins**, by Resend if `RESEND_API_KEY` is
+  set and to the log otherwise. Resend's test sender only delivers to the account
+  owner's address until a domain is verified.
+- **The calendar is a month-by-month list**, not a grid.
+
+### Phase 5 exit criteria
+
+| Criterion                                                    | Result                                                                         | Status       |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------ | ------------ |
+| 90% of answers on a 100-question set cite the correct clause | Citation checking is tested with a mocked model; no question set, no live call | Not measured |
+| Obligation dates match a gold set at least 90% of the time   | Correct on the three sample contracts (tested); no 40-contract gold set        | Not measured |
+| Reminders fire in staging                                    | The sweep and its schedule logic are tested; not run on a deployment           | Not verified |
+
+### Open items carried forward (Phase 5)
+
+- Ask a few questions live and check the citations.
+- Deploy and confirm the cron runs (it needs `CRON_SECRET` set on Vercel).
+- An obligations gold set with real effective dates and terms.

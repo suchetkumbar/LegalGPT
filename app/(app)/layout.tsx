@@ -39,6 +39,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
               >
                 Policies
               </Link>
+              <Link
+                href="/obligations"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Obligations
+              </Link>
             </nav>
             <Suspense fallback={<Skeleton className="h-7 w-40" />}>
               <OrganizationSwitcher

@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { AnalysisProgress } from "@/components/contracts/analysis-progress";
 import { ContractViewer } from "@/components/contracts/contract-viewer";
+import { AskPanel } from "@/components/ask/ask-panel";
 import { ComplianceMatrix } from "@/components/contracts/compliance-matrix";
 import { KeyDetails } from "@/components/contracts/key-details";
 import { OurPartySelect } from "@/components/contracts/our-party-select";
@@ -19,6 +20,7 @@ import { isUuid } from "@/lib/contracts/ids";
 import { getContract } from "@/lib/contracts/queries";
 import { withOrg } from "@/lib/db";
 import { getComplianceResults } from "@/lib/compliance/store";
+import { listObligations } from "@/lib/obligations/queries";
 import { getWeights } from "@/lib/playbook/queries";
 
 export const metadata: Metadata = { title: "Contract" };
@@ -47,10 +49,11 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
         detail: await getContract(tx, id),
         weights: await getWeights(tx),
         compliance: await getComplianceResults(tx, id),
+        obligations: await listObligations(tx, { contractId: id }),
       }))
     : null;
   if (!loaded?.detail) notFound();
-  const { detail, weights, compliance } = loaded;
+  const { detail, weights, compliance, obligations } = loaded;
 
   const { contract, clauses, entities, findings, job } = detail;
 
@@ -150,6 +153,26 @@ async function ContractDetail({ params }: { params: Promise<{ id: string }> }) {
             canReview={canEditContracts(user)}
           />
           <ComplianceMatrix results={compliance} clauses={clauses} />
+          {obligations.length > 0 && (
+            <section
+              aria-label="Obligations"
+              className="rounded-lg border px-5 py-4 text-sm"
+            >
+              <h2 className="font-medium">Obligations and deadlines</h2>
+              <ul className="mt-2 grid gap-1.5">
+                {obligations.map((item) => (
+                  <li key={item.id}>
+                    <span className="tabular-nums">
+                      {item.dueDate ?? "No fixed date"}
+                    </span>
+                    {" · "}
+                    {item.description}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <AskPanel contractId={contract.id} />
           {canEditContracts(user) && (
             <section aria-label="Upload a new version">
               <h2 className="mb-2 text-sm font-medium">Received a revised draft?</h2>

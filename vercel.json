@@ -2,5 +2,11 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["bom1"],
-  "buildCommand": "npm run db:migrate && npm run build"
+  "buildCommand": "npm run db:migrate && npm run build",
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "30 3 * * *"
+    }
+  ]
 }

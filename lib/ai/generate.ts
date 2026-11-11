@@ -60,7 +60,7 @@ export const pipelineAi: PipelineAi = {
     };
   },
 
-  async embed(texts) {
+  async embed(texts, kind = "document") {
     const embeddings: number[][] = [];
     let tokensIn = 0;
     for (let i = 0; i < texts.length; i += EMBED_BATCH) {
@@ -70,7 +70,7 @@ export const pipelineAi: PipelineAi = {
         providerOptions: {
           google: {
             outputDimensionality: EMBEDDING_DIMENSIONS,
-            taskType: "RETRIEVAL_DOCUMENT",
+            taskType: kind === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
           },
         },
         maxRetries: maxRetries(),

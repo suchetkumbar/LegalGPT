@@ -15,10 +15,20 @@ import { segmentContract, type Segment } from "./segment";
 import { runRules } from "@/lib/rules";
 import { loadPacks } from "@/lib/compliance/store";
 import { runCompliance } from "@/lib/compliance/engine";
+import { extractObligations } from "@/lib/obligations/extract";
 import { ensurePlaybook } from "@/lib/playbook/queries";
 import { rescoreContract } from "@/lib/scoring/rescore";
 
-const { contracts, clauses, complianceResults, entities, findings, jobs, orgs } = schema;
+const {
+  contracts,
+  clauses,
+  complianceResults,
+  entities,
+  findings,
+  jobs,
+  obligations,
+  orgs,
+} = schema;
 
 /**
  * The `analyze` job: parse → segment → classify → extract → embed → review → assess.
@@ -317,6 +327,49 @@ const STAGES: Record<
             explanation: verdict.explanation,
             fix: verdict.fix,
           })),
+        );
+      }
+
+      // Obligations and deadlines, worked out from the effective date.
+      const [effective] = await tx
+        .select({ normalized: entities.normalized })
+        .from(entities)
+        .where(
+          and(
+            eq(entities.contractId, contractId),
+            eq(entities.kind, "date"),
+            eq(entities.label, "effective_date"),
+          ),
+        );
+      const iso = (effective?.normalized as { iso?: string } | null)?.iso ?? null;
+      const extracted = extractObligations({ clauses: ruleClauses, effectiveDate: iso });
+      // Keep the reminder history of an obligation that is still there.
+      const earlierObligations = await tx
+        .select()
+        .from(obligations)
+        .where(eq(obligations.contractId, contractId));
+      await tx.delete(obligations).where(eq(obligations.contractId, contractId));
+      if (extracted.length > 0) {
+        await tx.insert(obligations).values(
+          extracted.map((item) => {
+            const earlier = earlierObligations.find(
+              (o) => o.kind === item.kind && o.dueDate === item.dueDate,
+            );
+            return {
+              orgId: contract.orgId,
+              contractId,
+              clauseId: clauseIdOf(item.clauseOrdinal),
+              kind: item.kind,
+              ownerParty: null,
+              description: item.description,
+              dueDate: item.dueDate,
+              recurrence: item.recurrence,
+              noticeDays: item.noticeDays,
+              quotedText: item.quotedText,
+              remindersSent: earlier?.remindersSent ?? [],
+              reminderSentAt: earlier?.reminderSentAt ?? null,
+            };
+          }),
         );
       }
 
