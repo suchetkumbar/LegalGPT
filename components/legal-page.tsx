@@ -1,3 +1,4 @@
+import { Logo } from "@/components/brand/logo-mark";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -16,8 +17,8 @@ export function LegalPage({
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-5">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          LegalGPT
+        <Link href="/" aria-label="LegalGPT home">
+          <Logo className="text-lg" />
         </Link>
         <nav className="text-muted-foreground flex gap-4 text-sm">
           <Link href="/docs">Help</Link>

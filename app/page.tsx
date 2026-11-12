@@ -1,3 +1,4 @@
+import { Logo } from "@/components/brand/logo-mark";
 import Link from "next/link";
 
 import { Disclaimer } from "@/components/disclaimer";
@@ -22,7 +23,7 @@ export default function Home() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
-        <span className="text-lg font-semibold tracking-tight">LegalGPT</span>
+        <Logo className="text-lg" />
         <nav className="flex items-center gap-2">
           <Button asChild variant="ghost">
             <Link href="/sign-in">Sign in</Link>

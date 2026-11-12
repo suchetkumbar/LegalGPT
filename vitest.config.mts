@@ -15,7 +15,7 @@ export default defineConfig({
     // Each database test file runs its own in-process Postgres, and the OCR
     // test runs Tesseract. With one worker per core these can exhaust memory
     // and crash workers on Windows, so cap the parallelism.
-    maxWorkers: 4,
+    maxWorkers: 2,
     testTimeout: 30_000,
   },
 });
